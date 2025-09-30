@@ -1,0 +1,64 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  ci-cd:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Dar permisos de ejecución a gradlew
+        run: chmod +x ./gradlew
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Run ktlintFormat
+        run: |
+          CHANGES_BEFORE=$(git diff --name-only)
+          ./gradlew ktlintFormat --quiet
+          CHANGES_AFTER=$(git diff --name-only)
+          if [ "$CHANGES_BEFORE" != "$CHANGES_AFTER" ]; then
+            echo "Build bloqueado: ktlintFormat modificó archivos."
+            exit 1
+          fi
+
+      - name: Run ktlintCheck
+        run: ./gradlew ktlintCheck --quiet
+
+      - name: Run tests
+        run: |
+          ./gradlew test --continue > .git/test-output.log
+          if grep -q "FAILED" .git/test-output.log; then
+            echo "Build bloqueado: fallaron tests."
+            cat .git/test-output.log | grep FAILED
+            exit 1
+          fi
+
+      - name: Verify coverage
+        run: |
+          ./gradlew jacocoTestCoverageVerification --quiet
+          if [ $? -ne 0 ]; then
+            echo "Build bloqueado: cobertura de código inferior al 80%."
+            ./gradlew jacocoTestReport
+            exit 1
+          fi
+
+      - name: Check
+        run: ./gradlew check
+
+      - name: Build
+        run: ./gradlew build
+

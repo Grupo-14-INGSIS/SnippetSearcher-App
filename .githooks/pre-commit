@@ -1,0 +1,41 @@
+#!/bin/bash
+
+set -e # hace que, si algún método/verificación devuelve 1, corta automáticamente la ejecución
+
+echo "Ejecutando ktlintFormat..."
+CHANGES_BEFORE=$(git diff --name-only) # almacenamiento del estado del repo antes de aplicar format
+./gradlew ktlintFormat --quiet
+CHANGES_AFTER=$(git diff --name-only)
+
+if [ "$CHANGES_BEFORE" != "$CHANGES_AFTER" ]; then
+        echo "Commit bloqueado: ktlintFormat modificó archivos. Se sugiere git diff > git add . > git commit si estás conforme con los cambios."
+        exit 1 # código de error
+fi
+
+echo "Ejecutando ktlintCheck..."
+./gradlew ktlintCheck --quiet # así solo muestra la información relevante
+STATUS=$?
+
+if [ $STATUS -ne 0 ]; then
+        echo "Commit bloqueado: errores de formato detectados por ktlint."
+        echo "Ejecuta './gradlew ktlintFormat' para corregir automáticamente."
+        exit 1
+fi
+
+echo "Ejecutando tests..."
+./gradlew test --continue > .git/test-output.log
+if grep -q "FAILED" .git/test-output.log; then
+        echo "Commit bloqueado: fallaron tests."
+        cat .git/test-output.log | grep FAILED
+        exit 1
+fi
+
+echo "Verificando cobertura de código (mínimo 80%)..."
+./gradlew jacocoTestCoverageVerification --quiet
+if [ $? -ne 0 ]; then
+        echo "Commit bloqueado: la cobertura de código es inferior al 80%."
+        echo "Ejecuta './gradlew jacocoTestReport' y revisa los reportes para mejorar la cobertura."
+        exit 1
+fi
+
+echo "Todo aprobado. Commit permitido."
