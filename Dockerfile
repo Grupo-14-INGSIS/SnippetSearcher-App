@@ -7,7 +7,7 @@ COPY . .
 # Compile source code and generate .jar, except for task "test"
 # RUN gradle build -x test
 # As for now, add everything until tasks are implemented
-RUN gradle build
+RUN gradle bootJar -x test
 
 # This generates a first image, containing the compiled .jar file
 

@@ -95,7 +95,7 @@ tasks.named('test') {
 }
 
 application {
-    mainClass = 'MainKt'
+    mainClass = 'com.grupo14IngSis.snippetSearcherApp.SnippetSearcherAppKt'
 }
 
 kotlin {
