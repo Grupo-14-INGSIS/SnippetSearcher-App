@@ -105,3 +105,7 @@ kotlin {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+tasks.bootJar {
+    mainClass.set("com.grupo14IngSis.snippetSearcherApp.SnippetSearcherAppKt")
+}
