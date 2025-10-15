@@ -19,10 +19,11 @@ services:
     ports:
       - 5432:5432
     environment:
-      POSTGRES_USER: sa
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
       POSTGRES_DB: compose-db
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data #para guardar de forma persistente
+      - ./db/init:/docker-entrypoint-initdb.d
 volumes:
   pgdata:
