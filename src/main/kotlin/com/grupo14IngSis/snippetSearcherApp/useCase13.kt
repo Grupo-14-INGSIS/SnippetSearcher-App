@@ -1,3 +1,3 @@
 package com.grupo14IngSis.snippetSearcherApp
 
-class useCase13
+class UseCase13
