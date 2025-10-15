@@ -1,6 +1,6 @@
 services:
   api:
-    container_name: "compose-api"
+    container_name: "app"
     build:
       context: .
       dockerfile: Dockerfile.multi
