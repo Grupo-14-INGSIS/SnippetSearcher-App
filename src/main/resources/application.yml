@@ -2,17 +2,32 @@ spring:
   application:
     name: user-service
   datasource:
-    url: jdbc:postgresql://postgres:5432/userdb
-    username: postgres
+    url: jdbc:postgresql://snippet-db:5432/snippet-db
+    username: sa
     password: password
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
+  spring:
+    security:
+      oauth2:
+        resourceserver:
+          jwt:
+            issuer-uri: https://dev-65tlgyzfpbzeka8a.us.auth0.com/
 
 server:
-  port: 8081
+  port: 8080
 
+# Configuración JWT local (puedes mantenerla si también usas JWT propio)
 jwt:
   secret: tu-super-secreto-jwt-key-minimo-256-bits
   expiration: 86400000 # 24 horas en ms
+
+# Configuración Auth0
+auth0:
+  domain: dev-65tlgyzfpbzeka8a.us.auth0.com
+  audience: https://api.snippets.com
+  clientId: WlTG30qceM7qOiDY0hB90bVtUog4xCdp
+  clientSecret: gR_X5kVh5bjLPwqh9IHLE2aSwKFu5pkQ-MoIaN8Yjk_NIsAWbonq47IpgyoPjzPX
+

@@ -1,0 +1,32 @@
+# --- Archivos y carpetas del control de versiones ---
+.git
+.gitignore
+
+# --- Archivos temporales o de entorno ---
+README.md
+*.log
+*.tmp
+
+# --- Directorios de dependencias ---
+.gradle
+build/
+out/
+bin/
+target/
+
+# --- Archivos del sistema ---
+.DS_Store
+Thumbs.db
+
+# --- IDEs / entornos de desarrollo ---
+.idea/
+.vscode/
+*.iml
+
+# --- Documentación o archivos locales ---
+README.md
+docs/
+notes/
+tests/
+
+# --- Configuraciones locales -
