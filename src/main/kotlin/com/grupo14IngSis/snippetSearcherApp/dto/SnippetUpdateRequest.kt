@@ -5,5 +5,5 @@ data class SnippetUpdateRequest(
     val description: String?,
     val language: String?,
     val version: String?,
-    val content: String?
+    val content: String?,
 )

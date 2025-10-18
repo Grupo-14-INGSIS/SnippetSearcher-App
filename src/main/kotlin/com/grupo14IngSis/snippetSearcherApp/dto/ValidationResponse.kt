@@ -6,5 +6,5 @@ data class ValidationResponse(
     val message: String,
     val rule: String?,
     val line: Int?,
-    val column: Int?
+    val column: Int?,
 )

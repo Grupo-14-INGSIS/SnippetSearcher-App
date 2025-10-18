@@ -1,26 +1,25 @@
 package com.grupo14IngSis.snippetSearcherApp.service
 
 import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
+import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateResponse
+import com.grupo14IngSis.snippetSearcherApp.dto.ValidationResponse
 import com.grupo14IngSis.snippetSearcherApp.model.Snippet
 import com.grupo14IngSis.snippetSearcherApp.repository.SnippetRepository
 import org.springframework.stereotype.Service
-import org.springframework.web.multipart.MultipartFile
-import com.grupo14IngSis.snippetSearcherApp.dto.ValidationResponse
-import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateResponse
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.multipart.MultipartFile
 
 @Service
 class SnippetService(
     private val repository: SnippetRepository,
-    private val runnerClient: RunnerClient
+    private val runnerClient: RunnerClient,
 ) {
-
     fun createSnippet(
         file: MultipartFile,
         language: String,
         version: String,
         name: String,
-        description: String
+        description: String,
     ): Snippet {
         val code = String(file.bytes)
 
@@ -31,20 +30,22 @@ class SnippetService(
                 message = "Código inválido: ${validation.message}",
                 rule = validation.rule ?: "Unknown rule",
                 line = validation.line ?: 0,
-                column = validation.column ?: 0
+                column = validation.column ?: 0,
             )
         }
 
-        val snippet = Snippet(
-            name = name,
-            description = description,
-            language = language,
-            version = version,
-            content = code
-        )
+        val snippet =
+            Snippet(
+                name = name,
+                description = description,
+                language = language,
+                version = version,
+                content = code,
+            )
 
         return repository.save(snippet)
     }
+
     @Transactional
     fun updateSnippet(
         id: String,
@@ -52,11 +53,12 @@ class SnippetService(
         description: String? = null,
         language: String? = null,
         version: String? = null,
-        content: String? = null
+        content: String? = null,
     ): SnippetUpdateResponse {
         // Buscar el snippet existente
-        val snippet = repository.findById(id)
-            .orElseThrow { IllegalArgumentException("Snippet with id $id not found") }
+        val snippet =
+            repository.findById(id)
+                .orElseThrow { IllegalArgumentException("Snippet with id $id not found") }
 
         // Validar que el usuario actual sea el owner del snippet
         // TODO: Implementar verificación de ownership cuando se agregue Auth0
@@ -71,18 +73,19 @@ class SnippetService(
 
         // Validar el contenido actualizado si se proporcionó nuevo contenido
         if (content != null) {
-            val validationResponse = validateSnippetContent(
-                content = updatedContent,
-                language = updatedLanguage,
-                version = updatedVersion
-            )
+            val validationResponse =
+                validateSnippetContent(
+                    content = updatedContent,
+                    language = updatedLanguage,
+                    version = updatedVersion,
+                )
 
             if (!validationResponse.isValid) {
                 throw InvalidSnippetException(
                     message = "El snippet no es válido según las reglas del parser",
                     rule = validationResponse.rule ?: "Unknown rule",
                     line = validationResponse.line ?: 0,
-                    column = validationResponse.column ?: 0
+                    column = validationResponse.column ?: 0,
                 )
             }
         }
@@ -105,17 +108,15 @@ class SnippetService(
             version = savedSnippet.version,
             content = savedSnippet.content,
             isValid = true,
-            validationErrors = null
+            validationErrors = null,
         )
     }
 
     private fun validateSnippetContent(
         content: String,
         language: String,
-        version: String
+        version: String,
     ): ValidationResponse {
         return runnerClient.validateSnippet(content, language, version)
     }
 }
-
-

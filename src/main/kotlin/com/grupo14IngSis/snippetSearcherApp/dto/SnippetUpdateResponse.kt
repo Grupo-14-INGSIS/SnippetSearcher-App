@@ -8,5 +8,5 @@ data class SnippetUpdateResponse(
     val version: String,
     val content: String,
     val isValid: Boolean,
-    val validationErrors: List<String>? = null
+    val validationErrors: List<String>? = null,
 )
