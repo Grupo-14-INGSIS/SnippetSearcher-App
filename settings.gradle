@@ -10,4 +10,4 @@ plugins {
 }
 
 
-rootProject.name = 'SnippetSearcher-Engine'
+rootProject.name = 'SnippetSearcher-App'

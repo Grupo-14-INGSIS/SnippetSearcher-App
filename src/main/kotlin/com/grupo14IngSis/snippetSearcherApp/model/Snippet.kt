@@ -1,15 +1,19 @@
 package com.grupo14IngSis.snippetSearcherApp.model
 
 import jakarta.persistence.*
+import org.hibernate.annotations.UuidGenerator
+
+import org.hibernate.annotations.UuidGenerator
 
 @Entity
 data class Snippet(
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    val id: Long? = null,
-    val name: String,
-    val description: String,
-    val language: String,
-    val version: String,
+    @Id @GeneratedValue
+    @UuidGenerator
+    val id: String? = null,
+    var name: String,
+    var description: String,
+    var language: String,
+    var version: String,
     @Lob
-    val code: String
+    var content: String
 )

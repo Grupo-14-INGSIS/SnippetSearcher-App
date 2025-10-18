@@ -5,6 +5,7 @@ import com.grupo14IngSis.snippetSearcherApp.model.Snippet
 import com.grupo14IngSis.snippetSearcherApp.repository.SnippetRepository
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
+import com.grupo14IngSis.snippetSearcherApp.dto.ValidationResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateResponse
 import org.springframework.transaction.annotation.Transactional
 
@@ -25,9 +26,12 @@ class SnippetService(
 
         val validation = runnerClient.validateCode(language, code)
 
-        if (!validation.valid) {
+        if (!validation.isValid) {
             throw InvalidSnippetException(
-                "Código inválido: ${validation.error} (línea ${validation.line}, columna ${validation.column})"
+                message = "Código inválido: ${validation.message}",
+                rule = validation.rule ?: "Unknown rule",
+                line = validation.line ?: 0,
+                column = validation.column ?: 0
             )
         }
 
@@ -36,7 +40,7 @@ class SnippetService(
             description = description,
             language = language,
             version = version,
-            code = code
+            content = code
         )
 
         return repository.save(snippet)
@@ -51,7 +55,7 @@ class SnippetService(
         content: String? = null
     ): SnippetUpdateResponse {
         // Buscar el snippet existente
-        val snippet = snippetRepository.findById(id)
+        val snippet = repository.findById(id)
             .orElseThrow { IllegalArgumentException("Snippet with id $id not found") }
 
         // Validar que el usuario actual sea el owner del snippet
@@ -91,7 +95,7 @@ class SnippetService(
         snippet.content = updatedContent
 
         // Guardar cambios
-        val savedSnippet = snippetRepository.save(snippet)
+        val savedSnippet = repository.save(snippet)
 
         return SnippetUpdateResponse(
             id = savedSnippet.id!!,
@@ -114,4 +118,4 @@ class SnippetService(
     }
 }
 
-class InvalidSnippetException(message: String) : RuntimeException(message)
+
