@@ -1,6 +1,5 @@
 package com.grupo14IngSis.snippetSearcherApp.client
 
-import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.client.WebClient
 import reactor.core.publisher.Mono
@@ -16,7 +15,7 @@ class AccessManagerClient(private val webClientBuilder: WebClient.Builder) {
             .uri("/internal/auth/user-id")
             .header("Authorization", authHeader)
             .retrieve()
-            // Si el AccessManager devuelve 4xx (401 Unauthorized), la llamada devuelve null
+            // Si el AccessManager no autoriza el token,,la llamada devuelve null
             .onStatus({ status -> status.is4xxClientError }) { Mono.empty() }
             .bodyToMono(String::class.java)
             .block()

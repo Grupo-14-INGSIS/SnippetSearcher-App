@@ -27,7 +27,7 @@ class SnippetController(
         @RequestHeader("Authorization") authHeader: String
     ): ResponseEntity<SnippetCreationResponse> {
 
-        // 1. Autorización (Llama a AccessManager para verificar token/usuario)
+        // Delego la verificación del token del usuario
         val userId = accessManagerClient.authorize(authHeader)
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
 
