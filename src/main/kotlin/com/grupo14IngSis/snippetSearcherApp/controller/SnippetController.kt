@@ -1,6 +1,6 @@
 package com.grupo14IngSis.snippetSearcherApp.controller
 
-import com.grupo14IngSis.snippetSearcherApp.client.AccessManagerClient // Debes crear esta clase
+import com.grupo14IngSis.snippetSearcherApp.client.AccessManagerClient
 import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationResponse
@@ -14,10 +14,9 @@ import org.springframework.web.multipart.MultipartFile
 @RestController
 @RequestMapping("/api/v1/snippets")
 class SnippetController(
-    private val accessManagerClient: AccessManagerClient, // Cliente para AccessManager
-    private val runnerClient: RunnerClient
+    private val accessManagerClient: AccessManagerClient,
+    private val runnerClient: RunnerClient,
 ) {
-
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun createSnippet(
         @RequestPart("file") file: MultipartFile,

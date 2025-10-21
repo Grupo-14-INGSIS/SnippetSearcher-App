@@ -23,7 +23,7 @@ class RunnerClient(private val webClientBuilder: WebClient.Builder) {
             .onStatus({ status -> status.is4xxClientError }) { response ->
                 response.bodyToMono<ValidationResponse>()
                     .flatMap { error: ValidationResponse ->
-                        Mono.error(InvalidSnippetException(error.message))
+                        Mono.error(InvalidSnippetException(error.message, "To be implemented", 0, 0))
                     }
             }
             .bodyToMono<SnippetCreationResponse>()

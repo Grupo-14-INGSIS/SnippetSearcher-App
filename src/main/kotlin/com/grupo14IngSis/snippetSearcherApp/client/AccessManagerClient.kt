@@ -15,7 +15,7 @@ class AccessManagerClient(private val webClientBuilder: WebClient.Builder) {
             .uri("/internal/auth/user-id")
             .header("Authorization", authHeader)
             .retrieve()
-            // Si el AccessManager no autoriza el token,,la llamada devuelve null
+            // Si el AccessManager no autoriza el token,la llamada devuelve null
             .onStatus({ status -> status.is4xxClientError }) { Mono.empty() }
             .bodyToMono(String::class.java)
             .block()
