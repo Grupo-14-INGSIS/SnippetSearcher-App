@@ -1,14 +1,14 @@
 spring:
   application:
-    name: user-service
-  datasource:
-    url: jdbc:postgresql://snippet-db:5432/snippet-db
-    username: sa
-    password: password
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
+    name: snippet-searcher-app
+  #datasource:
+  #  url: jdbc:postgresql://snippet-db:5432/snippet-db
+  #  username: sa
+  #  password: password
+  #jpa:
+  #  hibernate:
+  #    ddl-auto: update
+  #  show-sql: true
   spring:
     security:
       oauth2:
@@ -20,9 +20,9 @@ server:
   port: 8080
 
 # Configuración JWT local (puedes mantenerla si también usas JWT propio)
-jwt:
-  secret: tu-super-secreto-jwt-key-minimo-256-bits
-  expiration: 86400000 # 24 horas en ms
+#jwt:
+#  secret: tu-super-secreto-jwt-key-minimo-256-bits
+#  expiration: 86400000 # 24 horas en ms
 
 # Configuración Auth0
 auth0:

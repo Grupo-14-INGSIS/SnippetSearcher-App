@@ -1,5 +1,5 @@
 package com.grupo14IngSis.snippetSearcherApp.service
-
+/*
 import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
 import com.grupo14IngSis.snippetSearcherApp.model.Snippet
 import com.grupo14IngSis.snippetSearcherApp.repository.SnippetRepository
@@ -42,3 +42,6 @@ class SnippetService(
 }
 
 class InvalidSnippetException(message: String) : RuntimeException(message)
+
+
+ */

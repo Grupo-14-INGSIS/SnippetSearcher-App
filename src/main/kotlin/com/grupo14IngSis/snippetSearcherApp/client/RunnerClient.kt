@@ -4,7 +4,6 @@ import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.ValidationResponse
 import com.grupo14IngSis.snippetSearcherApp.service.InvalidSnippetException
-import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.bodyToMono
@@ -13,8 +12,8 @@ import reactor.core.publisher.Mono
 @Component
 class RunnerClient(private val webClientBuilder: WebClient.Builder) {
 
-    // WebClient configurado con la base URL del Runner
-    private val webClient = webClientBuilder.baseUrl("http://snippet-searcher-runner").build()
+    // WebClient deberá estar configurado con la base URL del Runner
+    private val webClient = webClientBuilder.baseUrl("http://localhost:8082").build()
 
     fun processAndSaveSnippet(request: SnippetCreationRequest): SnippetCreationResponse {
         return webClient.post()
@@ -23,8 +22,7 @@ class RunnerClient(private val webClientBuilder: WebClient.Builder) {
             .retrieve()
             .onStatus({ status -> status.is4xxClientError }) { response ->
                 response.bodyToMono<ValidationResponse>()
-                    .flatMap { error: ValidationResponse -> // Tipado explícito para mayor claridad
-                        // El 'error' es de tipo ValidationResponse, usamos su 'message'
+                    .flatMap { error: ValidationResponse ->
                         Mono.error(InvalidSnippetException(error.message))
                     }
             }
