@@ -9,6 +9,4 @@ import org.springframework.stereotype.Repository
 interface SnippetRepository : JpaRepository<Snippet, String> {
     fun findByOwnerId(ownerId: String): List<Snippet>
 }
-
-
- */
+*/
