@@ -6,7 +6,6 @@ import reactor.core.publisher.Mono
 
 @Component
 class AccessManagerClient(private val webClientBuilder: WebClient.Builder) {
-
     // URL ajustada para prueba local (Puerto 8081)
     private val webClient = webClientBuilder.baseUrl("http://localhost:8081").build()
 

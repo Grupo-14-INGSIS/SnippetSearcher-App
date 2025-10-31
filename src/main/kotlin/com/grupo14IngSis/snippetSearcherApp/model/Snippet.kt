@@ -8,5 +8,5 @@ data class Snippet(
     val description: String,
     val language: String,
     val version: String,
-    val code: String
+    val code: String,
 )

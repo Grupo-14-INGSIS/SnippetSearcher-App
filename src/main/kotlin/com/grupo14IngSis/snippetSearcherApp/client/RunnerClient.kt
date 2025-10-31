@@ -14,7 +14,6 @@ import reactor.core.publisher.Mono
 
 @Component
 class RunnerClient(private val webClientBuilder: WebClient.Builder) {
-
     // WebClient deberá estar configurado con la base URL del Runner
     private val webClient = webClientBuilder.baseUrl("http://localhost:8082").build()
 
@@ -33,7 +32,11 @@ class RunnerClient(private val webClientBuilder: WebClient.Builder) {
             .block() ?: throw RuntimeException("Error desconocido en la comunicación con Runner")
     }
 
-    fun updateSnippet(snippetId: Long, userId: String, request: SnippetUpdateRequest): SnippetUpdateResponse {
+    fun updateSnippet(
+        snippetId: Long,
+        userId: String,
+        request: SnippetUpdateRequest,
+    ): SnippetUpdateResponse {
         return webClient.put()
             .uri("/internal/snippets/$snippetId")
             .header("X-User-Id", userId) // Pasar el userId al Runner
@@ -42,19 +45,24 @@ class RunnerClient(private val webClientBuilder: WebClient.Builder) {
             .onStatus({ status -> status.is4xxClientError }) { response ->
                 response.bodyToMono<ValidationResponse>()
                     .flatMap { error: ValidationResponse ->
-                        Mono.error(InvalidSnippetException(
-                            error.message,
-                            error.rule ?: "Unknown",
-                            error.line ?: 0,
-                            error.column ?: 0
-                        ))
+                        Mono.error(
+                            InvalidSnippetException(
+                                error.message,
+                                error.rule ?: "Unknown",
+                                error.line ?: 0,
+                                error.column ?: 0,
+                            ),
+                        )
                     }
             }
             .bodyToMono<SnippetUpdateResponse>()
             .block() ?: throw RuntimeException("Error desconocido en la comunicación con Runner")
     }
 
-    fun getSnippet(snippetId: Long, userId: String): Snippet {
+    fun getSnippet(
+        snippetId: Long,
+        userId: String,
+    ): Snippet {
         return webClient.get()
             .uri("/internal/snippets/$snippetId")
             .header("X-User-Id", userId) // Para verificar permisos
