@@ -26,4 +26,9 @@ class SnippetService(
         // Obtener snippet del Runner
         return runnerClient.getSnippet(snippetId, userId)
     }
+
+    fun getAllSnippetsByUser(userId: String): List<Snippet> {
+        // Obtener todos los snippets del usuario desde el Runner
+        return runnerClient.getAllSnippets(userId)
+    }
 }

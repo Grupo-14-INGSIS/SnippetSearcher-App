@@ -148,4 +148,24 @@ class SnippetController(
             ResponseEntity.status(HttpStatus.NOT_FOUND).build()
         }
     }
+
+    // ========== OBTENER TODOS LOS SNIPPETS DEL USUARIO ==========
+    @GetMapping
+    fun getAllSnippets(
+        @RequestHeader("Authorization") authHeader: String
+    ): ResponseEntity<List<Snippet>> {
+
+        // 1. Verificar autorización
+        val userId = accessManagerClient.authorize(authHeader)
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+
+        // 2. Obtener todos los snippets del usuario
+        return try {
+            val snippets = snippetService.getAllSnippetsByUser(userId)
+            ResponseEntity.ok(snippets)
+        } catch (e: RuntimeException) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+        }
+    }
 }
+
