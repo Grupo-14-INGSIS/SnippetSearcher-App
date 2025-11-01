@@ -1,10 +1,6 @@
 package com.grupo14IngSis.snippetSearcherApp.client
 
-import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationRequest
-import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationResponse
-import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateRequest
-import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateResponse
-import com.grupo14IngSis.snippetSearcherApp.dto.ValidationResponse
+import com.grupo14IngSis.snippetSearcherApp.dto.*
 import com.grupo14IngSis.snippetSearcherApp.model.Snippet
 import com.grupo14IngSis.snippetSearcherApp.service.InvalidSnippetException
 import org.springframework.stereotype.Component
@@ -16,7 +12,6 @@ import reactor.core.publisher.Mono
 @Component
 class RunnerClient(private val webClientBuilder: WebClient.Builder) {
 
-    // WebClient configurado con la base URL del Runner
     private val webClient = webClientBuilder.baseUrl("http://localhost:8082").build()
 
     fun processAndSaveSnippet(request: SnippetCreationRequest): SnippetCreationResponse {
@@ -76,6 +71,45 @@ class RunnerClient(private val webClientBuilder: WebClient.Builder) {
                 Mono.error(RuntimeException("Error al obtener snippets"))
             }
             .bodyToMono(object : ParameterizedTypeReference<List<Snippet>>() {})
+            .block() ?: emptyList()
+    }
+
+    // ========== NUEVOS MÉTODOS PARA USER STORY #6 ==========
+
+    fun getSnippetDetail(snippetId: Long, userId: String): SnippetDetailResponse {
+        return webClient.get()
+            .uri("/internal/snippets/$snippetId/detail")
+            .header("X-User-Id", userId)
+            .retrieve()
+            .onStatus({ status -> status.is4xxClientError }) { response ->
+                Mono.error(RuntimeException("Snippet no encontrado o sin permisos"))
+            }
+            .bodyToMono<SnippetDetailResponse>()
+            .block() ?: throw RuntimeException("Error al obtener detalles del snippet")
+    }
+
+    fun executeTests(snippetId: Long, userId: String, request: TestExecutionRequest): TestExecutionResponse {
+        return webClient.post()
+            .uri("/internal/snippets/$snippetId/test")
+            .header("X-User-Id", userId)
+            .bodyValue(request)
+            .retrieve()
+            .onStatus({ status -> status.is4xxClientError }) { response ->
+                Mono.error(RuntimeException("Error al ejecutar tests"))
+            }
+            .bodyToMono<TestExecutionResponse>()
+            .block() ?: throw RuntimeException("Error al ejecutar tests del snippet")
+    }
+
+    fun getLintingErrors(snippetId: Long, userId: String): List<LintingError> {
+        return webClient.get()
+            .uri("/internal/snippets/$snippetId/linting-errors")
+            .header("X-User-Id", userId)
+            .retrieve()
+            .onStatus({ status -> status.is4xxClientError }) { response ->
+                Mono.error(RuntimeException("Error al obtener errores de linting"))
+            }
+            .bodyToMono(object : ParameterizedTypeReference<List<LintingError>>() {})
             .block() ?: emptyList()
     }
 }

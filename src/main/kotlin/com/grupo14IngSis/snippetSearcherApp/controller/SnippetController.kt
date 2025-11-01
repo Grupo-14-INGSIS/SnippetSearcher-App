@@ -2,10 +2,14 @@ package com.grupo14IngSis.snippetSearcherApp.controller
 
 import com.grupo14IngSis.snippetSearcherApp.client.AccessManagerClient
 import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
+import com.grupo14IngSis.snippetSearcherApp.dto.LintingError
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationResponse
+import com.grupo14IngSis.snippetSearcherApp.dto.SnippetDetailResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateResponse
+import com.grupo14IngSis.snippetSearcherApp.dto.TestExecutionRequest
+import com.grupo14IngSis.snippetSearcherApp.dto.TestExecutionResponse
 import com.grupo14IngSis.snippetSearcherApp.model.Snippet
 import com.grupo14IngSis.snippetSearcherApp.service.InvalidSnippetException
 import com.grupo14IngSis.snippetSearcherApp.service.SnippetService
@@ -165,6 +169,64 @@ class SnippetController(
             ResponseEntity.ok(snippets)
         } catch (e: RuntimeException) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+        }
+    }
+
+    // ========== OBTENER DETALLES COMPLETOS DEL SNIPPET (User Story #6) ==========
+    @GetMapping("/{snippetId}/detail")
+    fun getSnippetDetail(
+        @PathVariable snippetId: Long,
+        @RequestHeader("Authorization") authHeader: String,
+    ): ResponseEntity<SnippetDetailResponse> {
+        // 1. Verificar autorización
+        val userId = accessManagerClient.authorize(authHeader)
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+
+        // 2. Obtener detalles completos del snippet (contenido, tests, errores de linting)
+        return try {
+            val snippetDetail = snippetService.getSnippetDetail(snippetId, userId)
+            ResponseEntity.ok(snippetDetail)
+        } catch (e: RuntimeException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+        }
+    }
+
+    // ========== EJECUTAR TESTS DEL SNIPPET (User Story #6) ==========
+    @PostMapping("/{snippetId}/test")
+    fun executeTests(
+        @PathVariable snippetId: Long,
+        @RequestBody request: TestExecutionRequest,
+        @RequestHeader("Authorization") authHeader: String,
+    ): ResponseEntity<TestExecutionResponse> {
+        // 1. Verificar autorización
+        val userId = accessManagerClient.authorize(authHeader)
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+
+        // 2. Ejecutar los tests del snippet
+        return try {
+            val testResults = snippetService.executeTests(snippetId, userId, request)
+            ResponseEntity.ok(testResults)
+        } catch (e: RuntimeException) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+        }
+    }
+
+    // ========== OBTENER ERRORES DE LINTING DEL SNIPPET (User Story #6) ==========
+    @GetMapping("/{snippetId}/linting-errors")
+    fun getLintingErrors(
+        @PathVariable snippetId: Long,
+        @RequestHeader("Authorization") authHeader: String,
+    ): ResponseEntity<List<LintingError>> {
+        // 1. Verificar autorización
+        val userId = accessManagerClient.authorize(authHeader)
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+
+        // 2. Obtener errores de linting
+        return try {
+            val lintingErrors = snippetService.getLintingErrors(snippetId, userId)
+            ResponseEntity.ok(lintingErrors)
+        } catch (e: RuntimeException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND).build()
         }
     }
 }

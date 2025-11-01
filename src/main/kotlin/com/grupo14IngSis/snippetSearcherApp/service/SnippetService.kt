@@ -1,8 +1,7 @@
 package com.grupo14IngSis.snippetSearcherApp.service
 
 import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
-import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateRequest
-import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateResponse
+import com.grupo14IngSis.snippetSearcherApp.dto.*
 import com.grupo14IngSis.snippetSearcherApp.model.Snippet
 import org.springframework.stereotype.Service
 
@@ -15,7 +14,6 @@ class SnippetService(
         userId: String,
         updateRequest: SnippetUpdateRequest,
     ): SnippetUpdateResponse {
-        // Delegar todo al Runner (validación, permisos, persistencia)
         return runnerClient.updateSnippet(snippetId, userId, updateRequest)
     }
 
@@ -23,12 +21,28 @@ class SnippetService(
         snippetId: Long,
         userId: String,
     ): Snippet {
-        // Obtener snippet del Runner
         return runnerClient.getSnippet(snippetId, userId)
     }
 
     fun getAllSnippetsByUser(userId: String): List<Snippet> {
-        // Obtener todos los snippets del usuario desde el Runner
         return runnerClient.getAllSnippets(userId)
+    }
+
+    // ========== NUEVOS MÉTODOS PARA USER STORY #6 ==========
+
+    fun getSnippetDetail(snippetId: Long, userId: String): SnippetDetailResponse {
+        return runnerClient.getSnippetDetail(snippetId, userId)
+    }
+
+    fun executeTests(
+        snippetId: Long,
+        userId: String,
+        request: TestExecutionRequest
+    ): TestExecutionResponse {
+        return runnerClient.executeTests(snippetId, userId, request)
+    }
+
+    fun getLintingErrors(snippetId: Long, userId: String): List<LintingError> {
+        return runnerClient.getLintingErrors(snippetId, userId)
     }
 }
