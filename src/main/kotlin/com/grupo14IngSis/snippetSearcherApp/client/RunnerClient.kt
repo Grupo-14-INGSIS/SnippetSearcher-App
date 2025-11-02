@@ -1,115 +1,127 @@
 package com.grupo14IngSis.snippetSearcherApp.client
 
-import com.grupo14IngSis.snippetSearcherApp.dto.*
-import com.grupo14IngSis.snippetSearcherApp.model.Snippet
-import com.grupo14IngSis.snippetSearcherApp.service.InvalidSnippetException
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.http.HttpEntity
+import org.springframework.http.HttpHeaders
+import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
-import org.springframework.core.ParameterizedTypeReference
-import org.springframework.web.reactive.function.client.WebClient
-import org.springframework.web.reactive.function.client.bodyToMono
-import reactor.core.publisher.Mono
+import org.springframework.web.client.RestTemplate
+import org.springframework.web.client.HttpClientErrorException
+import org.springframework.web.client.HttpServerErrorException
 
 @Component
-class RunnerClient(private val webClientBuilder: WebClient.Builder) {
+class RunnerClient(
+    private val restTemplate: RestTemplate = RestTemplate()
+) {
 
-    private val webClient = webClientBuilder.baseUrl("http://localhost:8082").build()
+    @Value("\${runner.service.url}")
+    private lateinit var runnerServiceUrl: String
 
-    fun processAndSaveSnippet(request: SnippetCreationRequest): SnippetCreationResponse {
-        return webClient.post()
-            .uri("/internal/snippets")
-            .bodyValue(request)
-            .retrieve()
-            .onStatus({ status -> status.is4xxClientError }) { response ->
-                response.bodyToMono<ValidationResponse>()
-                    .flatMap { error: ValidationResponse ->
-                        Mono.error(InvalidSnippetException(error.message, "To be implemented", 0, 0))
-                    }
+    /**
+     * Ejecuta un snippet con los inputs proporcionados y captura los outputs.
+     * Los inputs se evalúan en orden y los outputs corresponden a las llamadas a println.
+     *
+     * @param content El código del snippet a ejecutar
+     * @param inputs Lista de inputs que se proporcionarán al snippet en orden
+     * @return Lista de outputs capturados de println en orden
+     * @throws RunnerExecutionException si hay un error en la ejecución
+     */
+    fun executeSnippet(content: String, inputs: List<String>): List<String> {
+        try {
+            val headers = HttpHeaders().apply {
+                contentType = MediaType.APPLICATION_JSON
             }
-            .bodyToMono<SnippetCreationResponse>()
-            .block() ?: throw RuntimeException("Error desconocido en la comunicación con Runner")
+
+            val request = ExecuteSnippetRequest(
+                code = content,
+                inputs = inputs
+            )
+
+            val entity = HttpEntity(request, headers)
+            val url = "$runnerServiceUrl/execute"
+
+            val response = restTemplate.postForEntity(
+                url,
+                entity,
+                ExecuteSnippetResponse::class.java
+            )
+
+            return response.body?.outputs ?: emptyList()
+
+        } catch (e: HttpClientErrorException) {
+            throw RunnerExecutionException(
+                "Error ejecutando snippet: ${e.responseBodyAsString}",
+                e
+            )
+        } catch (e: HttpServerErrorException) {
+            throw RunnerExecutionException(
+                "Error del servidor runner: ${e.responseBodyAsString}",
+                e
+            )
+        } catch (e: Exception) {
+            throw RunnerExecutionException(
+                "Error inesperado ejecutando snippet: ${e.message}",
+                e
+            )
+        }
     }
 
-    fun updateSnippet(snippetId: Long, userId: String, request: SnippetUpdateRequest): SnippetUpdateResponse {
-        return webClient.put()
-            .uri("/internal/snippets/$snippetId")
-            .header("X-User-Id", userId)
-            .bodyValue(request)
-            .retrieve()
-            .onStatus({ status -> status.is4xxClientError }) { response ->
-                response.bodyToMono<ValidationResponse>()
-                    .flatMap { error: ValidationResponse ->
-                        Mono.error(InvalidSnippetException(
-                            error.message,
-                            error.rule ?: "Unknown",
-                            error.line ?: 0,
-                            error.column ?: 0
-                        ))
-                    }
+    /**
+     * Valida la sintaxis de un snippet sin ejecutarlo
+     */
+    fun validateSnippet(content: String): ValidationResult {
+        try {
+            val headers = HttpHeaders().apply {
+                contentType = MediaType.APPLICATION_JSON
             }
-            .bodyToMono<SnippetUpdateResponse>()
-            .block() ?: throw RuntimeException("Error desconocido en la comunicación con Runner")
-    }
 
-    fun getSnippet(snippetId: Long, userId: String): Snippet {
-        return webClient.get()
-            .uri("/internal/snippets/$snippetId")
-            .header("X-User-Id", userId)
-            .retrieve()
-            .onStatus({ status -> status.is4xxClientError }) { response ->
-                Mono.error(RuntimeException("Snippet no encontrado o sin permisos"))
-            }
-            .bodyToMono<Snippet>()
-            .block() ?: throw RuntimeException("Snippet no encontrado")
-    }
+            val request = ValidateSnippetRequest(code = content)
+            val entity = HttpEntity(request, headers)
+            val url = "$runnerServiceUrl/validate"
 
-    fun getAllSnippets(userId: String): List<Snippet> {
-        return webClient.get()
-            .uri("/internal/snippets")
-            .header("X-User-Id", userId)
-            .retrieve()
-            .onStatus({ status -> status.is4xxClientError }) { response ->
-                Mono.error(RuntimeException("Error al obtener snippets"))
-            }
-            .bodyToMono(object : ParameterizedTypeReference<List<Snippet>>() {})
-            .block() ?: emptyList()
-    }
+            val response = restTemplate.postForEntity(
+                url,
+                entity,
+                ValidationResponse::class.java
+            )
 
-    // ========== NUEVOS MÉTODOS PARA USER STORY #6 ==========
+            return ValidationResult(
+                isValid = response.body?.isValid ?: false,
+                errors = response.body?.errors ?: emptyList()
+            )
 
-    fun getSnippetDetail(snippetId: Long, userId: String): SnippetDetailResponse {
-        return webClient.get()
-            .uri("/internal/snippets/$snippetId/detail")
-            .header("X-User-Id", userId)
-            .retrieve()
-            .onStatus({ status -> status.is4xxClientError }) { response ->
-                Mono.error(RuntimeException("Snippet no encontrado o sin permisos"))
-            }
-            .bodyToMono<SnippetDetailResponse>()
-            .block() ?: throw RuntimeException("Error al obtener detalles del snippet")
-    }
-
-    fun executeTests(snippetId: Long, userId: String, request: TestExecutionRequest): TestExecutionResponse {
-        return webClient.post()
-            .uri("/internal/snippets/$snippetId/test")
-            .header("X-User-Id", userId)
-            .bodyValue(request)
-            .retrieve()
-            .onStatus({ status -> status.is4xxClientError }) { response ->
-                Mono.error(RuntimeException("Error al ejecutar tests"))
-            }
-            .bodyToMono<TestExecutionResponse>()
-            .block() ?: throw RuntimeException("Error al ejecutar tests del snippet")
-    }
-
-    fun getLintingErrors(snippetId: Long, userId: String): List<LintingError> {
-        return webClient.get()
-            .uri("/internal/snippets/$snippetId/linting-errors")
-            .header("X-User-Id", userId)
-            .retrieve()
-            .onStatus({ status -> status.is4xxClientError }) { response ->
-                Mono.error(RuntimeException("Error al obtener errores de linting"))
-            }
-            .bodyToMono(object : ParameterizedTypeReference<List<LintingError>>() {})
-            .block() ?: emptyList()
+        } catch (e: Exception) {
+            return ValidationResult(
+                isValid = false,
+                errors = listOf("Error validating snippet: ${e.message}")
+            )
+        }
     }
 }
+
+// DTOs para la comunicación con el servicio Runner
+data class ExecuteSnippetRequest(
+    val code: String,
+    val inputs: List<String>
+)
+
+data class ExecuteSnippetResponse(
+    val outputs: List<String>,
+    val errors: List<String> = emptyList()
+)
+
+data class ValidateSnippetRequest(
+    val code: String
+)
+
+data class ValidationResponse(
+    val isValid: Boolean,
+    val errors: List<String> = emptyList()
+)
+
+data class ValidationResult(
+    val isValid: Boolean,
+    val errors: List<String>
+)
+
+class RunnerExecutionException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
