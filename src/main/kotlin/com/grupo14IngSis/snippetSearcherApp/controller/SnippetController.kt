@@ -229,5 +229,34 @@ class SnippetController(
             ResponseEntity.status(HttpStatus.NOT_FOUND).build()
         }
     }
+
+    @GetMapping("/{id}/download/original")
+    fun downloadOriginalSnippet(
+        @PathVariable id: String,
+        @RequestHeader("Authorization") token: String
+    ): ResponseEntity<ByteArrayResource> {
+        val snippet = snippetService.downloadOriginalSnippet(id, token)
+        return createDownloadResponse(snippet)
+    }
+
+    @GetMapping("/{id}/download/formatted")
+    fun downloadFormattedSnippet(
+        @PathVariable id: String,
+        @RequestHeader("Authorization") token: String
+    ): ResponseEntity<ByteArrayResource> {
+        val snippet = snippetService.downloadFormattedSnippet(id, token)
+        return createDownloadResponse(snippet)
+    }
+
+    private fun createDownloadResponse(snippet: SnippetDownloadDTO): ResponseEntity<ByteArrayResource> {
+        val resource = ByteArrayResource(snippet.content.toByteArray())
+        val filename = "${snippet.name}.${snippet.extension}"
+
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"$filename\"")
+            .contentType(MediaType.APPLICATION_OCTET_STREAM)
+            .contentLength(resource.contentLength())
+            .body(resource)
+    }
 }
 

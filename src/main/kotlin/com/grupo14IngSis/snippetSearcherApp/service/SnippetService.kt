@@ -45,4 +45,63 @@ class SnippetService(
     fun getLintingErrors(snippetId: Long, userId: String): List<LintingError> {
         return runnerClient.getLintingErrors(snippetId, userId)
     }
+
+    fun downloadOriginalSnippet(id: String, token: String): SnippetDownloadDTO {
+        val userId = accessManagerClient.validateToken(token)
+        val snippet = snippetRepository.findById(id)
+            .orElseThrow { InvalidSnippetException("Snippet not found") }
+
+        // Verificar permisos de lectura
+        if (snippet.author != userId) {
+            throw InvalidSnippetException("No permission to download this snippet")
+        }
+
+        return SnippetDownloadDTO(
+            id = snippet.id,
+            name = snippet.name,
+            content = snippet.content,
+            language = snippet.language,
+            extension = getExtensionForLanguage(snippet.language)
+        )
+    }
+
+    fun downloadFormattedSnippet(id: String, token: String): SnippetDownloadDTO {
+        val userId = accessManagerClient.validateToken(token)
+        val snippet = snippetRepository.findById(id)
+            .orElseThrow { InvalidSnippetException("Snippet not found") }
+
+        // Verificar permisos de lectura
+        if (snippet.author != userId) {
+            throw InvalidSnippetException("No permission to download this snippet")
+        }
+
+        // Aquí deberías llamar al servicio de formateo
+        val formattedContent = formatSnippet(snippet.content, snippet.language)
+
+        return SnippetDownloadDTO(
+            id = snippet.id,
+            name = snippet.name,
+            content = formattedContent,
+            language = snippet.language,
+            extension = getExtensionForLanguage(snippet.language)
+        )
+    }
+
+    private fun getExtensionForLanguage(language: String): String {
+        return when (language.lowercase()) {
+            "kotlin" -> "kt"
+            "java" -> "java"
+            "python" -> "py"
+            "javascript" -> "js"
+            "typescript" -> "ts"
+            else -> "txt"
+        }
+    }
+
+    private fun formatSnippet(content: String, language: String): String {
+        // Aquí deberías integrar con tu servicio de formateo
+        // Por ahora retorno el contenido original
+        // TODO: Implementar llamada al formatter service
+        return content
+    }
 }
