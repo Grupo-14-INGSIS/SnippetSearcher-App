@@ -1,7 +1,7 @@
 'use strict'
 
 exports.config = {
-    app_name: ['AppINgsis'], // Cambia por: users-api, products-api, etc.
+    app_name: ['AppIngsis'], // Cambia por: users-api, products-api, etc.
     license_key: '44361fb28211be08bdb208a56380f609FFFFNRAL',
     logging: {
         level: 'info'
