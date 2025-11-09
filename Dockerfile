@@ -12,11 +12,20 @@ RUN gradle bootJar -x test
 # This generates a first image, containing the compiled .jar file
 
 # Stage 2: runtime
-FROM openjdk:21-jdk-slim
+FROM eclipse-temurin:21-jdk
 WORKDIR /app
 # Copy .jar file from first image
 COPY --from=build /app/build/libs/*.jar app.jar
+
+# Copiar artefactos de New Relic
+RUN mkdir -p /usr/local/newrelic
+COPY newrelic/newrelic.jar /usr/local/newrelic/newrelic.jar
+COPY newrelic/newrelic.yml /usr/local/newrelic/newrelic.yml
+
+#Exponer puerto
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+
+#Usar el agente en el arranque
+ENTRYPOINT ["java", "-javaagent:/usr/local/newrelic/newrelic.jar", "-jar", "app.jar"]
 
 # Stage 2 does not use Gradle, so it is not necessary to run gradle build

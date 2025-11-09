@@ -1,0 +1,7 @@
+.git
+node_modules
+*.log
+
+#docker build -t newrelic-infra-agent ./newrelic-infra
+
+#docker run -d --name newrelic-infra --network=host --cap-add=SYS_PTRACE --privileged --pid=host -v "C:/:/host:ro" -v "/var/run/docker.sock:/var/run/docker.sock" newrelic-infra-agent

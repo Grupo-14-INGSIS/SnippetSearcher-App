@@ -31,3 +31,11 @@ auth0:
   clientId: WlTG30qceM7qOiDY0hB90bVtUog4xCdp
   clientSecret: gR_X5kVh5bjLPwqh9IHLE2aSwKFu5pkQ-MoIaN8Yjk_NIsAWbonq47IpgyoPjzPX
 
+
+# Configuración de logs con request-id
+logging:
+  pattern:
+    console: "[%X{request_id}] %d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+  level:
+    root: INFO
+    com.grupo14IngSis.snippetSearcher: DEBUG

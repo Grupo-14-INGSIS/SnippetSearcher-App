@@ -1,0 +1,6 @@
+enable_process_metrics: true
+status_server_enabled: true
+status_server_port: 18003
+license_key: 44361fb28211be08bdb208a56380f609FFFFNRAL
+custom_attributes:
+  nr_deployed_by: AppIngsis
