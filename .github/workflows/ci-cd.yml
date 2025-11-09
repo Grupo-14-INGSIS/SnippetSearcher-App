@@ -119,9 +119,11 @@ jobs:
           tags: ${{ secrets.ACR_LOGIN_SERVER }}/snippetsearcher-app:latest
 
       - name: Dispatch to infrastructure repository
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.PAT }}
-          repository: Grupo-14-INGSIS/SnippetSearcher-Infrastructure
-          event-type: new-image-ready
-          client-payload: '{"service": "snippetsearcher-app"}'
+        run: |
+          curl -v -L \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.PAT }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/Grupo-14-INGSIS/SnippetSearcher-Infrastructure/dispatches \
+            -d '{"event_type":"new-image-ready","client_payload":{"service":"snippetsearcher-app"}}'
