@@ -97,7 +97,6 @@ jobs:
           path: build/libs/*.jar
 
   build-and-push:
-    needs: ci-cd
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
