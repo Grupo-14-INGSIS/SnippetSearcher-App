@@ -124,4 +124,4 @@ jobs:
           token: ${{ secrets.PAT }}
           repository: Grupo-14-INGSIS/SnippetSearcher-Infrastructure
           event-type: new-image-ready
-              client-payload: '{"service": "snippetsearcher-app"}'
+          client-payload: '{"service": "snippetsearcher-app"}'
