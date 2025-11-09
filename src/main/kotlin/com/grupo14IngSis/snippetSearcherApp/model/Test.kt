@@ -9,7 +9,7 @@ data class Test(
     val inputs: List<String>,
     val expectedOutputs: List<String>,
     val createdAt: LocalDateTime = LocalDateTime.now(),
-    val updatedAt: LocalDateTime = LocalDateTime.now()
+    val updatedAt: LocalDateTime = LocalDateTime.now(),
 )
 
 data class TestResult(
@@ -17,5 +17,5 @@ data class TestResult(
     val passed: Boolean,
     val actualOutputs: List<String>,
     val expectedOutputs: List<String>,
-    val error: String? = null
+    val error: String? = null,
 )

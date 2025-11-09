@@ -1,16 +1,16 @@
-//package com.grupo14IngSis.snippetSearcherApp.service
+// package com.grupo14IngSis.snippetSearcherApp.service
 //
-//import com.grupo14IngSis.snippetSearcherApp.client.AccessManagerClient
-//import com.grupo14IngSis.snippetSearcherApp.dto.LintingRule
-//import com.grupo14IngSis.snippetSearcherApp.dto.UpdateLintingRulesRequest
-//import com.grupo14IngSis.snippetSearcherApp.model.LintingConfig
-//import com.grupo14IngSis.snippetSearcherApp.model.LintingRule
-//import com.grupo14IngSis.snippetSearcherApp.repository.LintingConfigRepository
-//import org.junit.jupiter.api.Assertions.*
-//import org.junit.jupiter.api.Test
-//import org.mockito.Mockito.*
+// import com.grupo14IngSis.snippetSearcherApp.client.AccessManagerClient
+// import com.grupo14IngSis.snippetSearcherApp.dto.LintingRule
+// import com.grupo14IngSis.snippetSearcherApp.dto.UpdateLintingRulesRequest
+// import com.grupo14IngSis.snippetSearcherApp.model.LintingConfig
+// import com.grupo14IngSis.snippetSearcherApp.model.LintingRule
+// import com.grupo14IngSis.snippetSearcherApp.repository.LintingConfigRepository
+// import org.junit.jupiter.api.Assertions.*
+// import org.junit.jupiter.api.Test
+// import org.mockito.Mockito.*
 //
-//class LintingServiceTest {
+// class LintingServiceTest {
 //
 //    private val lintingConfigRepository = mock(LintingConfigRepository::class.java)
 //    private val accessManagerClient = mock(AccessManagerClient::class.java)
@@ -105,4 +105,4 @@
 //        assertTrue(rules.any { it.name == "identifier-format" })
 //        assertTrue(rules.any { it.name == "mandatory-variable-or-literal-in-println" })
 //    }
-//}
+// }

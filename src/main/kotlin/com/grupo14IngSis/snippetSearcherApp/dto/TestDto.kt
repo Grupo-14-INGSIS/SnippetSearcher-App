@@ -3,13 +3,13 @@ package com.grupo14IngSis.snippetSearcherApp.dto
 data class CreateTestRequest(
     val name: String,
     val inputs: List<String>,
-    val expectedOutputs: List<String>
+    val expectedOutputs: List<String>,
 )
 
 data class UpdateTestRequest(
     val name: String?,
     val inputs: List<String>?,
-    val expectedOutputs: List<String>?
+    val expectedOutputs: List<String>?,
 )
 
 data class TestResponse(
@@ -19,7 +19,7 @@ data class TestResponse(
     val inputs: List<String>,
     val expectedOutputs: List<String>,
     val createdAt: String,
-    val updatedAt: String
+    val updatedAt: String,
 )
 
 data class TestResultResponse(
@@ -28,5 +28,5 @@ data class TestResultResponse(
     val actualOutputs: List<String>,
     val expectedOutputs: List<String>,
     val error: String? = null,
-    val isValid: Boolean // true si passed, false si es "inválido"
+    val isValid: Boolean, // true si passed, false si es "inválido"
 )

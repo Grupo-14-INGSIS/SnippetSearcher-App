@@ -1,22 +1,22 @@
-//package com.grupo14IngSis.snippetSearcherApp.service
+// package com.grupo14IngSis.snippetSearcherApp.service
 //
-//import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestRequest
-//import com.grupo14IngSis.snippetSearcherApp.dto.TestResponse
-//import com.grupo14IngSis.snippetSearcherApp.dto.TestResultResponse
-//import com.grupo14IngSis.snippetSearcherApp.dto.UpdateTestRequest
-//import com.grupo14IngSis.snippetSearcherApp.model.Test
-//import com.grupo14IngSis.snippetSearcherApp.repository.TestRepository
-//import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
-//import org.springframework.stereotype.Service
-//import java.time.LocalDateTime
-//import java.util.UUID
+// import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestRequest
+// import com.grupo14IngSis.snippetSearcherApp.dto.TestResponse
+// import com.grupo14IngSis.snippetSearcherApp.dto.TestResultResponse
+// import com.grupo14IngSis.snippetSearcherApp.dto.UpdateTestRequest
+// import com.grupo14IngSis.snippetSearcherApp.model.Test
+// import com.grupo14IngSis.snippetSearcherApp.repository.TestRepository
+// import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
+// import org.springframework.stereotype.Service
+// import java.time.LocalDateTime
+// import java.util.UUID
 //
-//@Service
-//class TestService(
+// @Service
+// class TestService(
 //    private val testRepository: TestRepository,
 //    private val snippetService: SnippetService,
 //    private val runnerClient: RunnerClient
-//) {
+// ) {
 //
 //    fun createTest(snippetId: String, request: CreateTestRequest): TestResponse {
 //        // Verificar que el snippet existe
@@ -127,6 +127,6 @@
 //        createdAt = createdAt.toString(),
 //        updatedAt = updatedAt.toString()
 //    )
-//}
+// }
 //
-//class TestException(message: String) : RuntimeException(message)
+// class TestException(message: String) : RuntimeException(message)

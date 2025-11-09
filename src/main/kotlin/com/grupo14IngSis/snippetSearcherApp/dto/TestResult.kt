@@ -7,5 +7,5 @@ data class TestResult(
     val actualOutput: List<String>,
     val expectedOutput: List<String>,
     val errorMessage: String? = null,
-    val executionTime: Long? = null // en milisegundos
+    val executionTime: Long? = null, // en milisegundos
 )

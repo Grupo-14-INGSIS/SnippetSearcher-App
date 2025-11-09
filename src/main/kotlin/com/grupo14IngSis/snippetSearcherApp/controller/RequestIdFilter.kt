@@ -4,14 +4,17 @@ import com.newrelic.api.agent.NewRelic
 import jakarta.servlet.*
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.slf4j.MDC
 import org.springframework.stereotype.Component
 import java.util.UUID
-import org.slf4j.MDC
 
 @Component
 class RequestIdFilter : Filter {
-
-    override fun doFilter(request: ServletRequest, response: ServletResponse, chain: FilterChain) {
+    override fun doFilter(
+        request: ServletRequest,
+        response: ServletResponse,
+        chain: FilterChain,
+    ) {
         val httpRequest = request as HttpServletRequest
         val httpResponse = response as HttpServletResponse
 

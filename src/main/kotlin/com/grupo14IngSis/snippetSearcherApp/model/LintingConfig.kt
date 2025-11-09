@@ -7,18 +7,17 @@ import jakarta.persistence.*
 data class LintingConfig(
     @Id
     val userId: String,
-
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
         name = "linting_rules",
-        joinColumns = [JoinColumn(name = "user_id")]
+        joinColumns = [JoinColumn(name = "user_id")],
     )
-    val rules: MutableList<LintingRule> = mutableListOf()
+    val rules: MutableList<LintingRule> = mutableListOf(),
 )
 
 @Embeddable
 data class LintingRule(
     val name: String,
     val isActive: Boolean,
-    val description: String? = null
+    val description: String? = null,
 )
