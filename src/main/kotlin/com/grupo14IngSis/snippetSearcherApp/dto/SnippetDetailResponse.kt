@@ -9,5 +9,5 @@ data class SnippetDetailResponse(
     val content: String,
     val testCases: List<TestCase>,
     val lintingErrors: List<LintingError>,
-    val isValid: Boolean
+    val isValid: Boolean,
 )

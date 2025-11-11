@@ -1,22 +1,22 @@
-//package com.grupo14IngSis.snippetSearcherApp.controller
+// package com.grupo14IngSis.snippetSearcherApp.controller
 //
-//import com.fasterxml.jackson.databind.ObjectMapper
-//import com.grupo14IngSis.snippetSearcherApp.dto.LintingConfig
-//import com.grupo14IngSis.snippetSearcherApp.dto.LintingRule
-//import com.grupo14IngSis.snippetSearcherApp.dto.UpdateLintingRulesRequest
-//import com.grupo14IngSis.snippetSearcherApp.service.LintingService
-//import org.junit.jupiter.api.Test
-//import org.mockito.Mockito.`when`
-//import org.springframework.beans.factory.annotation.Autowired
-//import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
-//import org.springframework.boot.test.mock.mockito.MockBean
-//import org.springframework.http.MediaType
-//import org.springframework.test.web.servlet.MockMvc
-//import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
-//import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
+// import com.fasterxml.jackson.databind.ObjectMapper
+// import com.grupo14IngSis.snippetSearcherApp.dto.LintingConfig
+// import com.grupo14IngSis.snippetSearcherApp.dto.LintingRule
+// import com.grupo14IngSis.snippetSearcherApp.dto.UpdateLintingRulesRequest
+// import com.grupo14IngSis.snippetSearcherApp.service.LintingService
+// import org.junit.jupiter.api.Test
+// import org.mockito.Mockito.`when`
+// import org.springframework.beans.factory.annotation.Autowired
+// import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
+// import org.springframework.boot.test.mock.mockito.MockBean
+// import org.springframework.http.MediaType
+// import org.springframework.test.web.servlet.MockMvc
+// import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
+// import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 //
-//@WebMvcTest(LintingController::class)
-//class LintingControllerTest {
+// @WebMvcTest(LintingController::class)
+// class LintingControllerTest {
 //
 //    @Autowired
 //    private lateinit var mockMvc: MockMvc
@@ -118,4 +118,4 @@
 //            .andExpect(status().isOk)
 //            .andExpect(jsonPath("$.rules[0].isActive").value(false))
 //    }
-//}
+// }

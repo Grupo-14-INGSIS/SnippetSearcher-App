@@ -1,31 +1,31 @@
-//package com.grupo14IngSis.snippetSearcherApp.controller
+// package com.grupo14IngSis.snippetSearcherApp.controller
 //
-//import com.grupo14IngSis.snippetSearcherApp.client.AccessManagerClient
-//import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
-//import com.grupo14IngSis.snippetSearcherApp.dto.LintingError
-//import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationRequest
-//import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationResponse
-//import com.grupo14IngSis.snippetSearcherApp.dto.SnippetDetailResponse
-//import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateRequest
-//import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateResponse
-//import com.grupo14IngSis.snippetSearcherApp.dto.TestExecutionRequest
-//import com.grupo14IngSis.snippetSearcherApp.dto.TestExecutionResponse
-//import com.grupo14IngSis.snippetSearcherApp.model.Snippet
-//import com.grupo14IngSis.snippetSearcherApp.service.InvalidSnippetException
-//import com.grupo14IngSis.snippetSearcherApp.service.SnippetService
-//import org.springframework.http.HttpStatus
-//import org.springframework.http.MediaType
-//import org.springframework.http.ResponseEntity
-//import org.springframework.web.bind.annotation.*
-//import org.springframework.web.multipart.MultipartFile
+// import com.grupo14IngSis.snippetSearcherApp.client.AccessManagerClient
+// import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
+// import com.grupo14IngSis.snippetSearcherApp.dto.LintingError
+// import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationRequest
+// import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationResponse
+// import com.grupo14IngSis.snippetSearcherApp.dto.SnippetDetailResponse
+// import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateRequest
+// import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateResponse
+// import com.grupo14IngSis.snippetSearcherApp.dto.TestExecutionRequest
+// import com.grupo14IngSis.snippetSearcherApp.dto.TestExecutionResponse
+// import com.grupo14IngSis.snippetSearcherApp.model.Snippet
+// import com.grupo14IngSis.snippetSearcherApp.service.InvalidSnippetException
+// import com.grupo14IngSis.snippetSearcherApp.service.SnippetService
+// import org.springframework.http.HttpStatus
+// import org.springframework.http.MediaType
+// import org.springframework.http.ResponseEntity
+// import org.springframework.web.bind.annotation.*
+// import org.springframework.web.multipart.MultipartFile
 //
-//@RestController
-//@RequestMapping("/api/v1/snippets")
-//class SnippetController(
+// @RestController
+// @RequestMapping("/api/v1/snippets")
+// class SnippetController(
 //    private val accessManagerClient: AccessManagerClient,
 //    private val runnerClient: RunnerClient,
 //    private val snippetService: SnippetService,
-//) {
+// ) {
 //    // ========== CREAR SNIPPET DESDE ARCHIVO ==========
 //    @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
 //    fun createSnippet(
@@ -258,5 +258,5 @@
 //            .contentLength(resource.contentLength())
 //            .body(resource)
 //    }
-//}
+// }
 //

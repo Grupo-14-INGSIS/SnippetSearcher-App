@@ -1,17 +1,17 @@
-//package com.grupo14IngSis.snippetSearcherApp.controller
+// package com.grupo14IngSis.snippetSearcherApp.controller
 //
-//import com.grupo14IngSis.snippetSearcherApp.dto.LintingConfig
-//import com.grupo14IngSis.snippetSearcherApp.dto.UpdateLintingRulesRequest
-//import com.grupo14IngSis.snippetSearcherApp.model.LintingRule
-//import com.grupo14IngSis.snippetSearcherApp.service.LintingService
-//import org.springframework.http.ResponseEntity
-//import org.springframework.web.bind.annotation.*
+// import com.grupo14IngSis.snippetSearcherApp.dto.LintingConfig
+// import com.grupo14IngSis.snippetSearcherApp.dto.UpdateLintingRulesRequest
+// import com.grupo14IngSis.snippetSearcherApp.model.LintingRule
+// import com.grupo14IngSis.snippetSearcherApp.service.LintingService
+// import org.springframework.http.ResponseEntity
+// import org.springframework.web.bind.annotation.*
 //
-//@RestController
-//@RequestMapping("/linting")
-//class LintingController(
+// @RestController
+// @RequestMapping("/linting")
+// class LintingController(
 //    private val lintingService: LintingService
-//) {
+// ) {
 //
 //    @GetMapping("/config")
 //    fun getUserConfig(
@@ -53,4 +53,4 @@
 //        val config = lintingService.disableRule(token, ruleName)
 //        return ResponseEntity.ok(config)
 //    }
-//}
+// }

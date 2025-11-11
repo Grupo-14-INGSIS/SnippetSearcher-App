@@ -15,16 +15,14 @@ class TestRepositoryImpl : TestRepository {
 
     override fun findById(id: String): Test? = tests[id]
 
-    override fun findBySnippetId(snippetId: String): List<Test> =
-        tests.values.filter { it.snippetId == snippetId }
+    override fun findBySnippetId(snippetId: String): List<Test> = tests.values.filter { it.snippetId == snippetId }
 
     override fun update(test: Test): Test {
         tests[test.id] = test
         return test
     }
 
-    override fun deleteById(id: String): Boolean =
-        tests.remove(id) != null
+    override fun deleteById(id: String): Boolean = tests.remove(id) != null
 
     override fun existsById(id: String): Boolean = tests.containsKey(id)
 }

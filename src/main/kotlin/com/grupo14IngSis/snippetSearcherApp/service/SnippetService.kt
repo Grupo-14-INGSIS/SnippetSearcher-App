@@ -1,14 +1,14 @@
-//package com.grupo14IngSis.snippetSearcherApp.service
+// package com.grupo14IngSis.snippetSearcherApp.service
 //
-//import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
-//import com.grupo14IngSis.snippetSearcherApp.dto.*
-//import com.grupo14IngSis.snippetSearcherApp.model.Snippet
-//import org.springframework.stereotype.Service
+// import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
+// import com.grupo14IngSis.snippetSearcherApp.dto.*
+// import com.grupo14IngSis.snippetSearcherApp.model.Snippet
+// import org.springframework.stereotype.Service
 //
-//@Service
-//class SnippetService(
+// @Service
+// class SnippetService(
 //    private val runnerClient: RunnerClient,
-//) {
+// ) {
 //    fun updateSnippet(
 //        snippetId: Long,
 //        userId: String,
@@ -104,4 +104,4 @@
 //        // TODO: Implementar llamada al formatter service
 //        return content
 //    }
-//}
+// }

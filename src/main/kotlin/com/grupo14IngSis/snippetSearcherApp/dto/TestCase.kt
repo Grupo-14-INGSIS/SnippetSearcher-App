@@ -5,11 +5,11 @@ data class TestCase(
     val name: String,
     val input: List<String>,
     val expectedOutput: List<String>,
-    val status: TestStatus = TestStatus.PENDING
+    val status: TestStatus = TestStatus.PENDING,
 )
 
 enum class TestStatus {
     PENDING,
     PASSED,
-    FAILED
+    FAILED,
 }

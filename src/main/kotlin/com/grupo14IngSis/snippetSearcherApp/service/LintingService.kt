@@ -1,17 +1,17 @@
-//package com.grupo14IngSis.snippetSearcherApp.service
+// package com.grupo14IngSis.snippetSearcherApp.service
 //
-//import com.grupo14IngSis.snippetSearcherApp.client.AccessManagerClient
-//import com.grupo14IngSis.snippetSearcherApp.dto.UpdateLintingRulesRequest
-//import com.grupo14IngSis.snippetSearcherApp.model.LintingConfig
-//import com.grupo14IngSis.snippetSearcherApp.model.LintingRule
-//import com.grupo14IngSis.snippetSearcherApp.repository.LintingConfigRepository
-//import org.springframework.stereotype.Service
+// import com.grupo14IngSis.snippetSearcherApp.client.AccessManagerClient
+// import com.grupo14IngSis.snippetSearcherApp.dto.UpdateLintingRulesRequest
+// import com.grupo14IngSis.snippetSearcherApp.model.LintingConfig
+// import com.grupo14IngSis.snippetSearcherApp.model.LintingRule
+// import com.grupo14IngSis.snippetSearcherApp.repository.LintingConfigRepository
+// import org.springframework.stereotype.Service
 //
-//@Service
-//class LintingService(
+// @Service
+// class LintingService(
 //    private val lintingConfigRepository: LintingConfigRepository,
 //    private val accessManagerClient: AccessManagerClient
-//) {
+// ) {
 //
 //    fun getUserLintingConfig(token: String): LintingConfig{
 //        val userId = accessManagerClient.authorize(token)
@@ -148,4 +148,4 @@
 //            description = dto.description
 //        )
 //    }
-//}
+// }

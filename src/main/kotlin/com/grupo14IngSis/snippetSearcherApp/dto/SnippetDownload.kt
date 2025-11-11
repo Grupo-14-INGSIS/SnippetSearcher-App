@@ -5,5 +5,5 @@ data class SnippetDownload(
     val name: String,
     val content: String,
     val language: String,
-    val extension: String
+    val extension: String,
 )
