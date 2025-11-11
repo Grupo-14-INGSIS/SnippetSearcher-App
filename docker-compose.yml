@@ -4,20 +4,19 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - 8000:8080
     environment:
       DB_USER: app
       DB_PASSWORD: app
       DB_NAME: snippet-db
       DB_HOST: db
       DB_PORT: 5432
+    networks:
+      - reverse-proxy-network
 
   db:
     container_name: snippet-db
     image: postgres:16
-    ports:
-      - 5432:5432
+
     environment:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: app
@@ -25,5 +24,11 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data #para guardar de forma persistente
       - ./db/init:/docker-entrypoint-initdb.d
+    networks:
+      - reverse-proxy-network
 volumes:
   pgdata:
+
+networks:
+  reverse-proxy-network:
+    external: true
