@@ -1,5 +1,6 @@
 package com.grupo14IngSis.snippetSearcherApp.client
 
+import org.slf4j.MDC
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.client.WebClient
 import reactor.core.publisher.Mono
@@ -10,9 +11,11 @@ class AccessManagerClient(private val webClientBuilder: WebClient.Builder) {
     private val webClient = webClientBuilder.baseUrl("http://localhost:8081").build()
 
     fun authorize(authHeader: String): String? {
+        val requestId = MDC.get("request_id") // ← AGREGAR
         return webClient.get()
             .uri("/internal/auth/user-id")
             .header("Authorization", authHeader)
+            .header("X-Request-ID", requestId)
             .retrieve()
             // Si el AccessManager no autoriza el token,la llamada devuelve null
             .onStatus({ status -> status.is4xxClientError }) { Mono.empty() }

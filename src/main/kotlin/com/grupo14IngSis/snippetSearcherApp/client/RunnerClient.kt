@@ -1,5 +1,6 @@
 package com.grupo14IngSis.snippetSearcherApp.client
 
+import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
@@ -30,9 +31,11 @@ class RunnerClient(
         inputs: List<String>,
     ): List<String> {
         try {
+            val requestId = MDC.get("request_id")
             val headers =
                 HttpHeaders().apply {
                     contentType = MediaType.APPLICATION_JSON
+                    set("X-Request-ID", requestId)
                 }
 
             val request =
@@ -75,9 +78,11 @@ class RunnerClient(
      */
     fun validateSnippet(content: String): ValidationResult {
         try {
+            val requestId = MDC.get("request_id")
             val headers =
                 HttpHeaders().apply {
                     contentType = MediaType.APPLICATION_JSON
+                    set("X-Request-ID", requestId)
                 }
 
             val request = ValidateSnippetRequest(code = content)
