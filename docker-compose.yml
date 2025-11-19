@@ -27,3 +27,8 @@ services:
       - ./db/init:/docker-entrypoint-initdb.d
 volumes:
   pgdata:
+
+spring:
+  redis:
+    host: redis
+    port: 6379
