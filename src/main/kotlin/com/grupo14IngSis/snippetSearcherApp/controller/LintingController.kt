@@ -3,7 +3,6 @@
 // import com.grupo14IngSis.snippetSearcherApp.dto.LintingConfig
 // import com.grupo14IngSis.snippetSearcherApp.dto.UpdateLintingRulesRequest
 // import com.grupo14IngSis.snippetSearcherApp.model.LintingRule
-// import com.grupo14IngSis.snippetSearcherApp.service.LintingService
 // import org.springframework.http.ResponseEntity
 // import org.springframework.web.bind.annotation.*
 //

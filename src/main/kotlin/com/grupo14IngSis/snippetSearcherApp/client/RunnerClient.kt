@@ -17,15 +17,7 @@ class RunnerClient(
     @Value("\${runner.service.url}")
     private lateinit var runnerServiceUrl: String
 
-    /**
-     * Ejecuta un snippet con los inputs proporcionados y captura los outputs.
-     * Los inputs se evalúan en orden y los outputs corresponden a las llamadas a println.
-     *
-     * @param content El código del snippet a ejecutar
-     * @param inputs Lista de inputs que se proporcionarán al snippet en orden
-     * @return Lista de outputs capturados de println en orden
-     * @throws RunnerExecutionException si hay un error en la ejecución
-     */
+
     fun executeSnippet(
         content: String,
         inputs: List<String>,
@@ -73,9 +65,6 @@ class RunnerClient(
         }
     }
 
-    /**
-     * Valida la sintaxis de un snippet sin ejecutarlo
-     */
     fun validateSnippet(content: String): ValidationResult {
         try {
             val requestId = MDC.get("request_id")

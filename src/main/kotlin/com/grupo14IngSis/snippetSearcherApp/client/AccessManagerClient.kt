@@ -11,7 +11,7 @@ class AccessManagerClient(private val webClientBuilder: WebClient.Builder) {
     private val webClient = webClientBuilder.baseUrl("http://localhost:8081").build()
 
     fun authorize(authHeader: String): String? {
-        val requestId = MDC.get("request_id") // ← AGREGAR
+        val requestId = MDC.get("request_id")
         return webClient.get()
             .uri("/internal/auth/user-id")
             .header("Authorization", authHeader)
