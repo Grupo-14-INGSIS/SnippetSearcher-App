@@ -29,6 +29,11 @@ services:
 volumes:
   pgdata:
 
+spring:
+  redis:
+    host: redis
+    port: 6379
+
 networks:
   reverse-proxy-network:
     external: true
