@@ -20,10 +20,8 @@ class RequestIdFilter : Filter {
 
         val requestId = httpRequest.getHeader("X-Request-Id") ?: UUID.randomUUID().toString()
 
-        // Agregar a MDC para logs
         MDC.put("request_id", requestId)
 
-        // Agregar a New Relic
         NewRelic.addCustomParameter("request_id", requestId)
 
         httpResponse.setHeader("X-Request-Id", requestId)

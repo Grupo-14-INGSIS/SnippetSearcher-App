@@ -7,6 +7,9 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestTemplate
+import org.slf4j.MDC
+import org.springframework.web.reactive.function.client.WebClient
+import reactor.core.publisher.Mono
 
 @Component
 class AccessManagerClient(
