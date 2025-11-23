@@ -9,12 +9,21 @@ spring:
   #  hibernate:
   #    ddl-auto: update
   #  show-sql: true
-  spring:
-    security:
-      oauth2:
-        resourceserver:
-          jwt:
-            issuer-uri: https://dev-65tlgyzfpbzeka8a.us.auth0.com/
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://dev-65tlgyzfpbzeka8a.us.auth0.com/
+  redis:
+    host: redis
+    port: 6379
+redis:
+  stream:
+    key: "jobs"
+
+app:
+  accessmanager:
+    url: http://${ACCESS_MANAGER_HOST}:${ACCESS_MANAGER_PORT}
 
 server:
   port: 8080

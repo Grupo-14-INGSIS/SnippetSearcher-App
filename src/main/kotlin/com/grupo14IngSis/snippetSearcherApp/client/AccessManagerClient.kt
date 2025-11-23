@@ -1,25 +1,28 @@
 package com.grupo14IngSis.snippetSearcherApp.client
 
-import org.slf4j.MDC
+import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForUserResponse
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.http.HttpEntity
+import org.springframework.http.HttpHeaders
+import org.springframework.http.HttpMethod
 import org.springframework.stereotype.Component
-import org.springframework.web.reactive.function.client.WebClient
-import reactor.core.publisher.Mono
+import org.springframework.web.client.RestTemplate
 
 @Component
-class AccessManagerClient(private val webClientBuilder: WebClient.Builder) {
-    // URL ajustada para prueba local (Puerto 8081)
-    private val webClient = webClientBuilder.baseUrl("http://localhost:8081").build()
-
-    fun authorize(authHeader: String): String? {
-        val requestId = MDC.get("request_id") // ← AGREGAR
-        return webClient.get()
-            .uri("/internal/auth/user-id")
-            .header("Authorization", authHeader)
-            .header("X-Request-ID", requestId)
-            .retrieve()
-            // Si el AccessManager no autoriza el token,la llamada devuelve null
-            .onStatus({ status -> status.is4xxClientError }) { Mono.empty() }
-            .bodyToMono(String::class.java)
-            .block()
+class AccessManagerClient(
+    private val restTemplate: RestTemplate,
+    @Value("\${app.accessmanager.url}") private val accessManagerUrl: String,
+) {
+    fun getPermissionsForUser(userId: String): GetPermissionsForUserResponse {
+        val url = "$accessManagerUrl/permissions?userId=$userId"
+        val headers = HttpHeaders()
+        val requestEntity = HttpEntity<Void>(headers)
+        val response = restTemplate.exchange<GetPermissionsForUserResponse>(
+            url,
+            HttpMethod.GET,
+            requestEntity,
+            GetPermissionsForUserResponse::class.java
+        )
+        return response.body ?: GetPermissionsForUserResponse(userId, emptyList(), emptyList())
     }
 }
