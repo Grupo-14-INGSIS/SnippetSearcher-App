@@ -4,36 +4,29 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    ports:
+      - "8081:8080"
     environment:
       DB_USER: app
       DB_PASSWORD: app
       DB_NAME: snippet-db
-      DB_HOST: db
+      DB_HOST: localhost
       DB_PORT: 5432
-    networks:
-      - reverse-proxy-network
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+    depends_on:
+      - app-db
 
-  db:
-    container_name: snippet-db
+  app-db:
+    container_name: "app-db"
     image: postgres:16
-
     environment:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: app
       POSTGRES_DB: snippet-db
     volumes:
-      - pgdata:/var/lib/postgresql/data #para guardar de forma persistente
+      - app-pgdata:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d
-    networks:
-      - reverse-proxy-network
+
 volumes:
-  pgdata:
-
-spring:
-  redis:
-    host: redis
-    port: 6379
-
-networks:
-  reverse-proxy-network:
-    external: true
+  app-pgdata:
