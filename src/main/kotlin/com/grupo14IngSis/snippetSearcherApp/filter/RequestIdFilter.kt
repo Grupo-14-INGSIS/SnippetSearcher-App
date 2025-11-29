@@ -12,16 +12,16 @@ import java.util.*
 
 @Component
 class RequestIdFilter : OncePerRequestFilter() {
-
     private val logger = LoggerFactory.getLogger(RequestIdFilter::class.java)
 
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
-        filterChain: FilterChain
+        filterChain: FilterChain,
     ) {
-        val requestId = request.getHeader("X-Request-ID")
-            ?: UUID.randomUUID().toString()
+        val requestId =
+            request.getHeader("X-Request-ID")
+                ?: UUID.randomUUID().toString()
 
         MDC.put("request_id", requestId)
 

@@ -17,7 +17,6 @@ class RunnerClient(
     @Value("\${runner.service.url}")
     private lateinit var runnerServiceUrl: String
 
-
     fun executeSnippet(
         content: String,
         inputs: List<String>,
