@@ -1,0 +1,25 @@
++-----------------------+
+|   E N D P O I N T S   |
++-----------------------+
+
+CRUD user
+GET    /api/v1/users/{userId}
+POST   /api/v1/users/{userId}
+PUT    /api/v1/users{userId}
+DELETE /api/v1/users/{userId}
+
+Auth0 -> Maybe not an endpoint
+????   /api/v1/users/{userId}/auth
+
+Start task (linting, formatting)
+POST   /api/v1/users/{userId}/task
+Task completed for a snippet
+POST   /api/v1/users/{userId}/task/{snippetId}
+
+Get and update rules
+GET    /api/v1/users/{userId}/rules?language={language}&task={task}
+PUT    /api/v1/users/{userId}/rules
+
+Testing (and execution)
+POST  /api/v1/users/{userId}/test/{snippetId}
+PUT   /api/v1/users/{userId}/test/{snippetId}

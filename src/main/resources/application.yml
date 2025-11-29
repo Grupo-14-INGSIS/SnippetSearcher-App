@@ -1,22 +1,19 @@
 spring:
   application:
     name: snippet-searcher-app
-  #datasource:
-  #  url: jdbc:postgresql://snippet-db:5432/snippet-db
-  #  username: sa
-  #  password: password
-  #jpa:
-  #  hibernate:
-  #    ddl-auto: update
-  #  show-sql: true
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
   security:
     oauth2:
       resourceserver:
         jwt:
           issuer-uri: https://dev-65tlgyzfpbzeka8a.us.auth0.com/
   redis:
-    host: redis
-    port: 6379
+    host: ${REDIS_HOST}
+    port: ${REDIS_PORT}
 redis:
   stream:
     key: "jobs"
@@ -28,12 +25,6 @@ app:
 server:
   port: 8080
 
-# Configuración JWT local (puedes mantenerla si también usas JWT propio)
-#jwt:
-#  secret: tu-super-secreto-jwt-key-minimo-256-bits
-#  expiration: 86400000 # 24 horas en ms
-
-# Configuración Auth0
 auth0:
   domain: dev-65tlgyzfpbzeka8a.us.auth0.com
   audience: https://api.snippets.com

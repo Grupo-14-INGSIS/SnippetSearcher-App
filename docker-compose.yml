@@ -9,21 +9,20 @@ services:
     environment:
       DB_USER: app
       DB_PASSWORD: app
-      DB_NAME: snippet-db
-      DB_HOST: localhost
+      DB_NAME: appdb
+      DB_HOST: appdb
       DB_PORT: 5432
       REDIS_HOST: localhost
       REDIS_PORT: 6379
     depends_on:
-      - app-db
+      - appdb
 
-  app-db:
-    container_name: "app-db"
+  appdb:
     image: postgres:16
     environment:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: app
-      POSTGRES_DB: snippet-db
+      POSTGRES_DB: appdb
     volumes:
       - app-pgdata:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d
