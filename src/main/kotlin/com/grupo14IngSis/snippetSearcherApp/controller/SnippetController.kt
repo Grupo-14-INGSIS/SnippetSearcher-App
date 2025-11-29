@@ -1,262 +1,342 @@
-// package com.grupo14IngSis.snippetSearcherApp.controller
-//
-// import com.grupo14IngSis.snippetSearcherApp.client.AccessManagerClient
-// import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
-// import com.grupo14IngSis.snippetSearcherApp.dto.LintingError
-// import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationRequest
-// import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationResponse
-// import com.grupo14IngSis.snippetSearcherApp.dto.SnippetDetailResponse
-// import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateRequest
-// import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateResponse
-// import com.grupo14IngSis.snippetSearcherApp.dto.TestExecutionRequest
-// import com.grupo14IngSis.snippetSearcherApp.dto.TestExecutionResponse
-// import com.grupo14IngSis.snippetSearcherApp.model.Snippet
-// import com.grupo14IngSis.snippetSearcherApp.service.InvalidSnippetException
-// import com.grupo14IngSis.snippetSearcherApp.service.SnippetService
-// import org.springframework.http.HttpStatus
-// import org.springframework.http.MediaType
-// import org.springframework.http.ResponseEntity
-// import org.springframework.web.bind.annotation.*
-// import org.springframework.web.multipart.MultipartFile
-//
-// @RestController
-// @RequestMapping("/api/v1/snippets")
-// class SnippetController(
-//    private val accessManagerClient: AccessManagerClient,
-//    private val runnerClient: RunnerClient,
-//    private val snippetService: SnippetService,
-// ) {
-//    // ========== CREAR SNIPPET DESDE ARCHIVO ==========
-//    @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-//    fun createSnippet(
-//        @RequestPart("file") file: MultipartFile,
-//        @RequestParam name: String,
-//        @RequestParam description: String,
-//        @RequestParam language: String,
-//        @RequestHeader("Authorization") authHeader: String,
-//    ): ResponseEntity<SnippetCreationResponse> {
-//        // 1. Verificación del token del usuario
-//        val userId =
-//            accessManagerClient.authorize(authHeader)
-//                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-//
-//        // 2. Preparación de la solicitud
-//        val runnerRequest =
-//            SnippetCreationRequest(
-//                userId = userId,
-//                name = name,
-//                description = description,
-//                language = language,
-//                code = String(file.bytes), // Lectura del contenido del archivo
-//            )
-//
-//        // 3. Procesamiento y Guardado (Llama a Runner)
-//        return try {
-//            val response = runnerClient.processAndSaveSnippet(runnerRequest)
-//            ResponseEntity.status(HttpStatus.CREATED).body(response)
-//        } catch (e: InvalidSnippetException) {
-//            // 4. Manejo del error de validación de Snippet
-//            ResponseEntity.status(HttpStatus.BAD_REQUEST)
-//                .body(
-//                    SnippetCreationResponse(
-//                        success = false,
-//                        message = "Error en el snippet: ${e.message}",
-//                    ),
-//                )
-//        }
-//    }
-//
-//    // ========== CREAR SNIPPET DESDE EDITOR (código directo) ==========
-//    @PostMapping("/code", consumes = [MediaType.APPLICATION_JSON_VALUE])
-//    fun createSnippetFromCode(
-//        @RequestBody request: SnippetCreationRequest,
-//        @RequestHeader("Authorization") authHeader: String,
-//    ): ResponseEntity<SnippetCreationResponse> {
-//        // 1. Verificación del token del usuario
-//        val userId =
-//            accessManagerClient.authorize(authHeader)
-//                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-//
-//        // 2. Asegurar que el userId del request coincida con el del token
-//        val requestWithUserId = request.copy(userId = userId)
-//
-//        // 3. Procesamiento y Guardado (Llama a Runner)
-//        return try {
-//            val response = runnerClient.processAndSaveSnippet(requestWithUserId)
-//            ResponseEntity.status(HttpStatus.CREATED).body(response)
-//        } catch (e: InvalidSnippetException) {
-//            ResponseEntity.status(HttpStatus.BAD_REQUEST)
-//                .body(
-//                    SnippetCreationResponse(
-//                        success = false,
-//                        message = "Error en el snippet: ${e.message}",
-//                    ),
-//                )
-//        }
-//    }
-//
-//    // ========== ACTUALIZAR SNIPPET DESDE EDITOR ==========
-//    @PutMapping("/{snippetId}", consumes = [MediaType.APPLICATION_JSON_VALUE])
-//    fun updateSnippet(
-//        @PathVariable snippetId: Long,
-//        @RequestBody updateRequest: SnippetUpdateRequest,
-//        @RequestHeader("Authorization") authHeader: String,
-//    ): ResponseEntity<SnippetUpdateResponse> {
-//        // 1. Verificar autorización
-//        val userId =
-//            accessManagerClient.authorize(authHeader)
-//                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-//
-//        // 2. Actualizar snippet (el Runner maneja validación, permisos y persistencia)
-//        return try {
-//            val response = snippetService.updateSnippet(snippetId, userId, updateRequest)
-//            ResponseEntity.ok(response)
-//        } catch (e: InvalidSnippetException) {
-//            // Error de validación del código
-//            ResponseEntity.status(HttpStatus.BAD_REQUEST)
-//                .body(
-//                    SnippetUpdateResponse(
-//                        id = snippetId.toString(),
-//                        name = "",
-//                        description = "",
-//                        language = "",
-//                        version = "",
-//                        content = "",
-//                        isValid = false,
-//                        validationErrors = listOf(e.message ?: "Error desconocido"),
-//                    ),
-//                )
-//        } catch (e: RuntimeException) {
-//            // Snippet no encontrado o sin permisos
-//            ResponseEntity.status(HttpStatus.NOT_FOUND).build()
-//        }
-//    }
-//
-//    // ========== OBTENER SNIPPET POR ID ==========
-//    @GetMapping("/{snippetId}")
-//    fun getSnippet(
-//        @PathVariable snippetId: Long,
-//        @RequestHeader("Authorization") authHeader: String,
-//    ): ResponseEntity<Snippet> {
-//        // 1. Verificar autorización
-//        val userId =
-//            accessManagerClient.authorize(authHeader)
-//                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-//
-//        // 2. Obtener snippet del Runner
-//        return try {
-//            val snippet = snippetService.getSnippetById(snippetId, userId)
-//            ResponseEntity.ok(snippet)
-//        } catch (e: RuntimeException) {
-//            // Snippet no encontrado o sin permisos
-//            ResponseEntity.status(HttpStatus.NOT_FOUND).build()
-//        }
-//    }
-//
-//    // ========== OBTENER TODOS LOS SNIPPETS DEL USUARIO ==========
-//    @GetMapping
-//    fun getAllSnippets(
-//        @RequestHeader("Authorization") authHeader: String
-//    ): ResponseEntity<List<Snippet>> {
-//
-//        // 1. Verificar autorización
-//        val userId = accessManagerClient.authorize(authHeader)
-//            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-//
-//        // 2. Obtener todos los snippets del usuario
-//        return try {
-//            val snippets = snippetService.getAllSnippetsByUser(userId)
-//            ResponseEntity.ok(snippets)
-//        } catch (e: RuntimeException) {
-//            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
-//        }
-//    }
-//
-//    // ========== OBTENER DETALLES COMPLETOS DEL SNIPPET (User Story #6) ==========
-//    @GetMapping("/{snippetId}/detail")
-//    fun getSnippetDetail(
-//        @PathVariable snippetId: Long,
-//        @RequestHeader("Authorization") authHeader: String,
-//    ): ResponseEntity<SnippetDetailResponse> {
-//        // 1. Verificar autorización
-//        val userId = accessManagerClient.authorize(authHeader)
-//            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-//
-//        // 2. Obtener detalles completos del snippet (contenido, tests, errores de linting)
-//        return try {
-//            val snippetDetail = snippetService.getSnippetDetail(snippetId, userId)
-//            ResponseEntity.ok(snippetDetail)
-//        } catch (e: RuntimeException) {
-//            ResponseEntity.status(HttpStatus.NOT_FOUND).build()
-//        }
-//    }
-//
-//    // ========== EJECUTAR TESTS DEL SNIPPET (User Story #6) ==========
-//    @PostMapping("/{snippetId}/test")
-//    fun executeTests(
-//        @PathVariable snippetId: Long,
-//        @RequestBody request: TestExecutionRequest,
-//        @RequestHeader("Authorization") authHeader: String,
-//    ): ResponseEntity<TestExecutionResponse> {
-//        // 1. Verificar autorización
-//        val userId = accessManagerClient.authorize(authHeader)
-//            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-//
-//        // 2. Ejecutar los tests del snippet
-//        return try {
-//            val testResults = snippetService.executeTests(snippetId, userId, request)
-//            ResponseEntity.ok(testResults)
-//        } catch (e: RuntimeException) {
-//            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
-//        }
-//    }
-//
-//    // ========== OBTENER ERRORES DE LINTING DEL SNIPPET (User Story #6) ==========
-//    @GetMapping("/{snippetId}/linting-errors")
-//    fun getLintingErrors(
-//        @PathVariable snippetId: Long,
-//        @RequestHeader("Authorization") authHeader: String,
-//    ): ResponseEntity<List<LintingError>> {
-//        // 1. Verificar autorización
-//        val userId = accessManagerClient.authorize(authHeader)
-//            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-//
-//        // 2. Obtener errores de linting
-//        return try {
-//            val lintingErrors = snippetService.getLintingErrors(snippetId, userId)
-//            ResponseEntity.ok(lintingErrors)
-//        } catch (e: RuntimeException) {
-//            ResponseEntity.status(HttpStatus.NOT_FOUND).build()
-//        }
-//    }
-//
-//    @GetMapping("/{id}/download/original")
-//    fun downloadOriginalSnippet(
-//        @PathVariable id: String,
-//        @RequestHeader("Authorization") token: String
-//    ): ResponseEntity<ByteArrayResource> {
-//        val snippet = snippetService.downloadOriginalSnippet(id, token)
-//        return createDownloadResponse(snippet)
-//    }
-//
-//    @GetMapping("/{id}/download/formatted")
-//    fun downloadFormattedSnippet(
-//        @PathVariable id: String,
-//        @RequestHeader("Authorization") token: String
-//    ): ResponseEntity<ByteArrayResource> {
-//        val snippet = snippetService.downloadFormattedSnippet(id, token)
-//        return createDownloadResponse(snippet)
-//    }
-//
-//    private fun createDownloadResponse(snippet: SnippetDownloadDTO): ResponseEntity<ByteArrayResource> {
-//        val resource = ByteArrayResource(snippet.content.toByteArray())
-//        val filename = "${snippet.name}.${snippet.extension}"
-//
-//        return ResponseEntity.ok()
-//            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"$filename\"")
-//            .contentType(MediaType.APPLICATION_OCTET_STREAM)
-//            .contentLength(resource.contentLength())
-//            .body(resource)
-//    }
-// }
-//
+package com.grupo14IngSis.snippetSearcherApp.controller
+import com.grupo14IngSis.snippetSearcherApp.client.AccessManagerClient
+import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
+import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestRequest
+import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestResponse
+import com.grupo14IngSis.snippetSearcherApp.dto.LintingError
+import com.grupo14IngSis.snippetSearcherApp.dto.ShareSnippetRequest
+import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationRequest
+import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationResponse
+import com.grupo14IngSis.snippetSearcherApp.dto.SnippetDetailResponse
+import com.grupo14IngSis.snippetSearcherApp.dto.SnippetRegisterRequest
+import com.grupo14IngSis.snippetSearcherApp.dto.SnippetRunRequest
+import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateRequest
+import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateResponse
+import com.grupo14IngSis.snippetSearcherApp.dto.TestExecutionRequest
+import com.grupo14IngSis.snippetSearcherApp.dto.TestExecutionResponse
+import com.grupo14IngSis.snippetSearcherApp.model.Snippet
+import com.grupo14IngSis.snippetSearcherApp.service.InvalidSnippetException
+import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.Authentication
+import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.web.bind.annotation.*
+import org.springframework.web.multipart.MultipartFile
+import java.security.Principal
+
+@RestController
+@RequestMapping("/api/v1")
+class SnippetController(
+   private val accessManagerClient: AccessManagerClient,
+   private val runnerClient: RunnerClient,
+) {
+  /**
+   * GET /api/v1/snippets
+   *
+   * Get all snippets available for a user
+   *
+   * Response:
+   *
+   *     {
+   *         [snippetId]
+   *     }
+   *     */
+  @GetMapping("/snippets")
+  @PreAuthorize("isAuthenticated()")
+  fun getAllSnippets(authentication: Authentication): ResponseEntity<List<Any>> {
+    val jwt = authentication.principal as Jwt
+    val userId = jwt.subject
+
+    // TODO: Call the service layer to fetch snippets for this userId
+    return ResponseEntity.ok(emptyList())
+  }
+
+  /**
+   * PUT    /api/v1/snippets/{snippetId}
+   *
+   * Register a snippet
+   *
+   * Request:
+   *
+   *     {
+   *       snippetId: {snippetId}
+   *       language: {language}
+   *       ownerId: {userId}
+   *     }
+   */
+  @GetMapping("/snippets/{snippetId}")
+  @PreAuthorize("isAuthenticated()")
+  fun registerSnippet(
+    authentication: Authentication,
+    @PathVariable snippetId: String,
+    @RequestBody snippetData: SnippetRegisterRequest
+  ): ResponseEntity<Any> {
+    val jwt = authentication.principal as Jwt
+    val userId = jwt.subject
+    // TODO
+    return ResponseEntity.ok().build()
+  }
+
+  /**
+   * DELETE /api/v1/snippets/{snippetId}
+   *
+   * Delete a snippet
+   */
+  @GetMapping("/snippets/{snippetId}")
+  @PreAuthorize("isAuthenticated()")
+  fun deleteSnippet(
+    authentication: Authentication,
+    @PathVariable snippetId: String,
+  ): ResponseEntity<Any> {
+    val jwt = authentication.principal as Jwt
+    val userId = jwt.subject    // TODO
+    return ResponseEntity.ok().build()
+  }
+
+  /**
+   * PUT    /api/v1/snippets/{snippetId}/permission
+   *
+   * Share a snippet with another user
+   *
+   * Request:
+   *
+   *     {
+   *       userId: {userId}
+   *     }
+   */
+  @GetMapping("/snippets/{snippetId}/permission")
+  @PreAuthorize("isAuthenticated()")
+  fun shareSnippet(
+    authentication: Authentication,
+    @PathVariable snippetId: String,
+    @RequestBody snippetData: ShareSnippetRequest
+  ): ResponseEntity<Any> {
+    val jwt = authentication.principal as Jwt
+    val userId = jwt.subject
+    // TODO
+    return ResponseEntity.ok().build()
+  }
+
+  /**
+   * DELETE /api/v1/snippets/{snippetId}/permission
+   *
+   * Remove permission for another user
+   */
+  @GetMapping("/snippets/{snippetId}/permission")
+  @PreAuthorize("isAuthenticated()")
+  fun removeSnippetPermission(
+    authentication: Authentication,
+    @PathVariable snippetId: String,
+  ): ResponseEntity<Any> {
+    val jwt = authentication.principal as Jwt
+    val userId = jwt.subject
+    // TODO
+    return ResponseEntity.ok().build()
+  }
+
+  /**
+   * DELETE /api/v1/users
+   *
+   * Delete a user
+   */
+  @GetMapping("/users")
+  @PreAuthorize("isAuthenticated()")
+  fun deleteUser(
+    authentication: Authentication,
+  ): ResponseEntity<Any> {
+    val jwt = authentication.principal as Jwt
+    val userId = jwt.subject
+    // TODO
+    return ResponseEntity.ok().build()
+  }
+
+  /**
+   * GET    /api/v1/snippets/{snippetId}/tests
+   *
+   * Get all tests for a snippet
+   *
+   * Response:
+   *
+   *     {
+   *       [testId]
+   *     }
+   */
+  @GetMapping("/snippets/{snippetId}/tests")
+  @PreAuthorize("isAuthenticated()")
+  fun getAllTests(
+    authentication: Authentication,
+    @PathVariable snippetId: String,
+  ): ResponseEntity<List<String>> {
+    val jwt = authentication.principal as Jwt
+    val userId = jwt.subject
+    // TODO
+    return ResponseEntity.ok().build()
+  }
+
+  /**
+   * POST   /api/v1/snippets/{snippetId}/tests
+   *
+   * Create a test
+   *
+   * Request:
+   *
+   *     {
+   *       snippetId: {snippetId}
+   *       input: [String]
+   *       expected: {String}
+   *     }
+   * Response
+   *
+   *     {
+   *       testId: {testId}
+   *     }
+   */
+  @GetMapping("/snippets/{snippetId}/tests")
+  @PreAuthorize("isAuthenticated()")
+  fun createTest(
+    authentication: Authentication,
+    @PathVariable snippetId: String,
+    @RequestBody testData: CreateTestRequest
+  ): ResponseEntity<CreateTestResponse> {
+    val jwt = authentication.principal as Jwt
+    val userId = jwt.subject
+    // TODO
+    return ResponseEntity.ok().build()
+  }
+
+  /**
+   * PUT    /api/v1/snippets/{snippetId}/tests/{testId}
+   *
+   * Start execution of a test
+   */
+  @GetMapping("/snippets/{snippetId}/tests/{testId}")
+  @PreAuthorize("isAuthenticated()")
+  fun runTest(
+    authentication: Authentication,
+    @PathVariable snippetId: String,
+    @PathVariable testId: String,
+  ): ResponseEntity<Any> {
+    val jwt = authentication.principal as Jwt
+    val userId = jwt.subject
+    // TODO
+    return ResponseEntity.ok().build()
+  }
+
+  /**
+   * DELETE /api/v1/snippets/{snippetId}/tests/{testId}
+   *
+   * Delete a test
+   */
+  @GetMapping("/snippets/{snippetId}/tests/{testId}")
+  @PreAuthorize("isAuthenticated()")
+  fun removeTest(
+    authentication: Authentication,
+    @PathVariable snippetId: String,
+    @PathVariable testId: String,
+  ): ResponseEntity<Any> {
+    val jwt = authentication.principal as Jwt
+    val userId = jwt.subject
+    // TODO
+    return ResponseEntity.ok().build()
+  }
+
+  /**
+   * POST   /api/v1/snippets/{snippetId}/run
+   *
+   * Start execution of a snippet or provide input
+   *
+   * Request:
+   *
+   *     {
+   *       input: {String?}
+   *     }
+   */
+  @GetMapping("/snippets/{snippetId}/run")
+  @PreAuthorize("isAuthenticated()")
+  fun runSnippet(
+    authentication: Authentication,
+    @PathVariable snippetId: String,
+    @RequestBody request: SnippetRunRequest
+  ): ResponseEntity<Any> {
+    val jwt = authentication.principal as Jwt
+    val userId = jwt.subject
+    // TODO
+    return ResponseEntity.ok().build()
+  }
+
+  /**
+   * DELETE /api/v1/snippets/{snippetId}/run
+   *
+   * Cancel execution of a snippet
+   */
+  @GetMapping("/snippets/{snippetId}/run")
+  @PreAuthorize("isAuthenticated()")
+  fun cancelSnippetExecution(
+    authentication: Authentication,
+    @PathVariable snippetId: String,
+  ): ResponseEntity<Any> {
+    val jwt = authentication.principal as Jwt
+    val userId = jwt.subject
+    // TODO
+    return ResponseEntity.ok().build()
+  }
+
+  /**
+   * PUT    /api/v1/rules
+   *
+   * Modify task rules
+   *
+   * Request:
+   *
+   *     {
+   *         task: {formatting/linting}
+   *         language: {language}
+   *         rules: {
+   *             rule1: {var1}
+   *             rule2: {val2}
+   *             ...
+   *         }
+   *     }
+   */
+  @GetMapping("/rules")
+  @PreAuthorize("isAuthenticated()")
+  fun updateRules(
+    authentication: Authentication,
+    @PathVariable snippetId: String,
+    @RequestBody request: SnippetUpdateRequest
+  ): ResponseEntity<Any> {
+    val jwt = authentication.principal as Jwt
+    val userId = jwt.subject
+    // TODO
+    return ResponseEntity.ok().build()
+  }
+
+  /**
+   * GET    /api/v1/rules?task={task}&language={language}
+   *
+   * Get all rules for a user
+   *
+   * Response:
+   *
+   *     {
+   *         rule1: {val1}
+   *         rule2: {val2}
+   *         ...
+   *     }
+   */
+  @GetMapping("/rules")
+  @PreAuthorize("isAuthenticated()")
+  fun getRules(
+    authentication: Authentication,
+    @PathVariable snippetId: String,
+    @RequestParam task: String,
+    @RequestParam language: String,
+  ): ResponseEntity<Map<String, Any>> {
+    val jwt = authentication.principal as Jwt
+    val userId = jwt.subject
+    // TODO
+    return ResponseEntity.ok().build()
+  }
+}

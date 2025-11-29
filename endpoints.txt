@@ -2,24 +2,119 @@
 |   E N D P O I N T S   |
 +-----------------------+
 
-CRUD user
-GET    /api/v1/users/{userId}
-POST   /api/v1/users/{userId}
-PUT    /api/v1/users{userId}
-DELETE /api/v1/users/{userId}
+Needed functions:
+* Register a snippet
+* Get all available snippets for a user
+* Share a snippet
+* Create a test for a snippet
+* Run a test
+* Run snippet with real-time input
+* Modify formatting rules
+* Modify linting rules
 
-Auth0 -> Maybe not an endpoint
-????   /api/v1/users/{userId}/auth
+Background:
+- Automatic linting of all snippets when updating rules
+- Automatic formatting of all snippets when updating rules
+- Automatic testing of a snippet when updating it
 
-Start task (linting, formatting)
-POST   /api/v1/users/{userId}/task
-Task completed for a snippet
-POST   /api/v1/users/{userId}/task/{snippetId}
+Extra:
++ Deleting a user
++ Deleting a snippet
++ Get snippet tests
++ Get user rules
 
-Get and update rules
-GET    /api/v1/users/{userId}/rules?language={language}&task={task}
-PUT    /api/v1/users/{userId}/rules
+Endpoints:
+SnippetController
+    GET    /api/v1/snippets
+    PUT    /api/v1/snippets/{snippetId}
+    DELETE /api/v1/snippets/{snippetId}
+    PUT    /api/v1/snippets/{snippetId}/permission
+    DELETE /api/v1/snippets/{snippetId}/permission
+    DELETE /api/v1/users
+    GET    /api/v1/snippets/{snippetId}/tests
+    POST   /api/v1/snippets/{snippetId}/tests
+    PUT    /api/v1/snippets/{snippetId}/tests/{testId}
+    DELETE /api/v1/snippets/{snippetId}/tests/{testId}
+    POST   /api/v1/snippets/{snippetId}/run
+    DELETE /api/v1/snippets/{snippetId}/run
+    PUT    /api/v1/rules
+    GET    /api/v1/rules
 
-Testing (and execution)
-POST  /api/v1/users/{userId}/test/{snippetId}
-PUT   /api/v1/users/{userId}/test/{snippetId}
+Detailed:
+SnippetController
+    GET    /api/v1/snippets
+        Get all snippets available for a user
+        Response:
+        {
+            [snippetId]
+        }
+    PUT    /api/v1/snippets/{snippetId}
+        Register a snippet
+        Request:
+        {
+            snippetId: {snippetId}
+            language: {language}
+            owner: {userId}
+        }
+    DELETE /api/v1/snippets/{snippetId}
+        Delete a snippet
+    PUT    /api/v1/snippets/{snippetId}/permission
+        Share a snippet with another user
+        Request:
+        {
+            userId: {userId}
+        }
+    DELETE /api/v1/snippets/{snippetId}/permission
+        Remove permission for another user
+    DELETE /api/v1/users
+        Delete a user
+    GET    /api/v1/snippets/{snippetId}/tests
+        Get all tests for a snippet
+        Response:
+        {
+            [testId]
+        }
+    POST   /api/v1/snippets/{snippetId}/tests
+        Create a test
+        Request:
+        {
+            snippetId: {snippetId}
+            input: [String]
+            expected: {String}
+        }
+        Response
+        {
+            testId: {testId}
+        }
+    PUT    /api/v1/snippets/{snippetId}/tests/{testId}
+        Start execution of a test
+    DELETE /api/v1/snippets/{snippetId}/tests/{testId}
+        (sin descripción adicional en la información original)
+    POST   /api/v1/snippets/{snippetId}/run
+        Start execution of a snippet or provide input
+        Request:
+        {
+            input: {String}
+        }
+    DELETE /api/v1/snippets/{snippetId}/run
+        Cancel execution of a snippet
+    PUT    /api/v1/rules
+        Modify task rules
+        Request:
+        {
+            task: {formatting/linting}
+            language: {language}
+            rules: {
+                rule1: {var1}
+                rule2: {val2}
+                ...
+            }
+        }
+    GET    /api/v1/rules?task={task}&language={language}
+        Get all rules for a user
+        Response:
+        {
+            rule1: {val1}
+            rule2: {val2}
+            ...
+        }
