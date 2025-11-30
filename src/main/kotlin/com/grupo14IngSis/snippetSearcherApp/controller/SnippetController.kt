@@ -13,6 +13,9 @@ import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -58,7 +61,7 @@ class SnippetController(
      *       ownerId: {userId}
      *     }
      */
-    @GetMapping("/snippets/{snippetId}")
+    @PutMapping("/snippets/{snippetId}")
     @PreAuthorize("isAuthenticated()")
     fun registerSnippet(
         authentication: Authentication,
@@ -76,7 +79,7 @@ class SnippetController(
      *
      * Delete a snippet
      */
-    @GetMapping("/snippets/{snippetId}")
+    @DeleteMapping("/snippets/{snippetId}")
     @PreAuthorize("isAuthenticated()")
     fun deleteSnippet(
         authentication: Authentication,
@@ -98,7 +101,7 @@ class SnippetController(
      *       userId: {userId}
      *     }
      */
-    @GetMapping("/snippets/{snippetId}/permission")
+    @PutMapping("/snippets/{snippetId}/permission")
     @PreAuthorize("isAuthenticated()")
     fun shareSnippet(
         authentication: Authentication,
@@ -116,7 +119,7 @@ class SnippetController(
      *
      * Remove permission for another user
      */
-    @GetMapping("/snippets/{snippetId}/permission")
+    @DeleteMapping("/snippets/{snippetId}/permission")
     @PreAuthorize("isAuthenticated()")
     fun removeSnippetPermission(
         authentication: Authentication,
@@ -133,7 +136,7 @@ class SnippetController(
      *
      * Delete a user
      */
-    @GetMapping("/users")
+    @DeleteMapping("/users")
     @PreAuthorize("isAuthenticated()")
     fun deleteUser(authentication: Authentication): ResponseEntity<Any> {
         val jwt = authentication.principal as Jwt
@@ -183,7 +186,7 @@ class SnippetController(
      *       testId: {testId}
      *     }
      */
-    @GetMapping("/snippets/{snippetId}/tests")
+    @PostMapping("/snippets/{snippetId}/tests")
     @PreAuthorize("isAuthenticated()")
     fun createTest(
         authentication: Authentication,
@@ -201,7 +204,7 @@ class SnippetController(
      *
      * Start execution of a test
      */
-    @GetMapping("/snippets/{snippetId}/tests/{testId}")
+    @PutMapping("/snippets/{snippetId}/tests/{testId}")
     @PreAuthorize("isAuthenticated()")
     fun runTest(
         authentication: Authentication,
@@ -219,7 +222,7 @@ class SnippetController(
      *
      * Delete a test
      */
-    @GetMapping("/snippets/{snippetId}/tests/{testId}")
+    @DeleteMapping("/snippets/{snippetId}/tests/{testId}")
     @PreAuthorize("isAuthenticated()")
     fun removeTest(
         authentication: Authentication,
@@ -243,7 +246,7 @@ class SnippetController(
      *       input: {String?}
      *     }
      */
-    @GetMapping("/snippets/{snippetId}/run")
+    @PostMapping("/snippets/{snippetId}/run")
     @PreAuthorize("isAuthenticated()")
     fun runSnippet(
         authentication: Authentication,
@@ -261,7 +264,7 @@ class SnippetController(
      *
      * Cancel execution of a snippet
      */
-    @GetMapping("/snippets/{snippetId}/run")
+    @DeleteMapping("/snippets/{snippetId}/run")
     @PreAuthorize("isAuthenticated()")
     fun cancelSnippetExecution(
         authentication: Authentication,
@@ -290,11 +293,10 @@ class SnippetController(
      *         }
      *     }
      */
-    @GetMapping("/rules")
+    @PutMapping("/rules")
     @PreAuthorize("isAuthenticated()")
     fun updateRules(
         authentication: Authentication,
-        @PathVariable snippetId: String,
         @RequestBody request: SnippetUpdateRequest,
     ): ResponseEntity<Any> {
         val jwt = authentication.principal as Jwt
@@ -320,7 +322,6 @@ class SnippetController(
     @PreAuthorize("isAuthenticated()")
     fun getRules(
         authentication: Authentication,
-        @PathVariable snippetId: String,
         @RequestParam task: String,
         @RequestParam language: String,
     ): ResponseEntity<Map<String, Any>> {
