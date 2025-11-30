@@ -12,10 +12,10 @@ import org.springframework.web.client.RestTemplate
 
 @Component
 class RunnerClient(
-    private val restTemplate: RestTemplate = RestTemplate(),
+    val restTemplate: RestTemplate = RestTemplate(),
 ) {
     @Value("\${runner.service.url}")
-    private lateinit var runnerServiceUrl: String
+    lateinit var runnerServiceUrl: String
 
     fun executeSnippet(
         content: String,

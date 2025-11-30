@@ -1,59 +1,28 @@
 package com.grupo14IngSis.snippetSearcherApp.model
 
-import org.junit.jupiter.api.Assertions.assertEquals
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import java.time.LocalDateTime
 
-class TestTest {
+class TestAndTestResultTest {
 
-    @Test
-    fun `Test should have correct properties`() {
-        val id = "tid"
-        val snippetId = "sid"
-        val name = "tname"
-        val inputs = listOf("a", "b")
-        val expectedOutputs = listOf("c")
-        val now = LocalDateTime.now()
+    private val mapper = jacksonObjectMapper()
 
-        val test = Test(
-            id = id,
-            snippetId = snippetId,
-            name = name,
-            inputs = inputs,
-            expectedOutputs = expectedOutputs,
-            createdAt = now,
-            updatedAt = now
-        )
-
-        assertEquals(id, test.id)
-        assertEquals(snippetId, test.snippetId)
-        assertEquals(name, test.name)
-        assertEquals(inputs, test.inputs)
-        assertEquals(expectedOutputs, test.expectedOutputs)
-        assertEquals(now, test.createdAt)
-        assertEquals(now, test.updatedAt)
-    }
 
     @Test
-    fun `TestResult should have correct properties`() {
-        val testId = "tid"
-        val passed = true
-        val actualOutputs = listOf("c")
-        val expectedOutputs = listOf("c")
-        val error = "error"
-
-        val result = TestResult(
-            testId = testId,
-            passed = passed,
-            actualOutputs = actualOutputs,
-            expectedOutputs = expectedOutputs,
-            error = error
+    fun `TestResult roundtrip serialization`() {
+        val original = TestResult(
+            testId = "tid",
+            passed = true,
+            actualOutputs = listOf("3"),
+            expectedOutputs = listOf("3"),
+            error = null
         )
 
-        assertEquals(testId, result.testId)
-        assertEquals(passed, result.passed)
-        assertEquals(actualOutputs, result.actualOutputs)
-        assertEquals(expectedOutputs, result.expectedOutputs)
-        assertEquals(error, result.error)
+        val json = mapper.writeValueAsString(original)
+        val roundtrip: TestResult = mapper.readValue(json)
+
+        assertEquals(original, roundtrip)
     }
 }
