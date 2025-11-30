@@ -7,9 +7,6 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestTemplate
-import org.slf4j.MDC
-import org.springframework.web.reactive.function.client.WebClient
-import reactor.core.publisher.Mono
 
 @Component
 class AccessManagerClient(
@@ -20,12 +17,13 @@ class AccessManagerClient(
         val url = "$accessManagerUrl/permissions?userId=$userId"
         val headers = HttpHeaders()
         val requestEntity = HttpEntity<Void>(headers)
-        val response = restTemplate.exchange<GetPermissionsForUserResponse>(
-            url,
-            HttpMethod.GET,
-            requestEntity,
-            GetPermissionsForUserResponse::class.java
-        )
+        val response =
+            restTemplate.exchange<GetPermissionsForUserResponse>(
+                url,
+                HttpMethod.GET,
+                requestEntity,
+                GetPermissionsForUserResponse::class.java,
+            )
         return response.body ?: GetPermissionsForUserResponse(userId, emptyList(), emptyList())
     }
 }
