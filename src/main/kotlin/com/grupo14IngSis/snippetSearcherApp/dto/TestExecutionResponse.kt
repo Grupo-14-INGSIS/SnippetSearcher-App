@@ -10,5 +10,6 @@ data class TestSummary(
     val passed: Int,
     val failed: Int,
     val pending: Int,
-    val executionTime: Long, // tiempo total en milisegundos
+    val executionTime: Long,
+    // tiempo total en milisegundos
 )

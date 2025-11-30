@@ -28,5 +28,6 @@ data class TestResultResponse(
     val actualOutputs: List<String>,
     val expectedOutputs: List<String>,
     val error: String? = null,
-    val isValid: Boolean, // true si passed, false si es "inválido"
+    val isValid: Boolean,
+    // true si passed, false si es "inválido"
 )

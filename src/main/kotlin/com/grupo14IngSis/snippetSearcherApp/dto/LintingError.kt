@@ -5,5 +5,6 @@ data class LintingError(
     val message: String,
     val line: Int,
     val column: Int,
-    val severity: String = "ERROR", // ERROR, WARNING, INFO
+    val severity: String = "ERROR",
+    // ERROR, WARNING, INFO
 )
