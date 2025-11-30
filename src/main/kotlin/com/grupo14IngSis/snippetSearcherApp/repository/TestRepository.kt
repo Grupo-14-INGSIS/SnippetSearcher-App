@@ -1,6 +1,6 @@
 package com.grupo14IngSis.snippetSearcherApp.repository
 
-import com.grupo14IngSis.snippetSearcherApp.model.Test
+import com.grupo14IngSis.snippetSearcherApp.domain.Test
 import org.springframework.stereotype.Repository
 
 @Repository

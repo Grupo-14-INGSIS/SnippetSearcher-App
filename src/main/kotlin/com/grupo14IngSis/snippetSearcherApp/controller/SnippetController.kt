@@ -3,30 +3,15 @@ import com.grupo14IngSis.snippetSearcherApp.client.AccessManagerClient
 import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
 import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestResponse
-import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForUserResponse
-import com.grupo14IngSis.snippetSearcherApp.dto.LintingError
 import com.grupo14IngSis.snippetSearcherApp.dto.ShareSnippetRequest
-import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationRequest
-import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationResponse
-import com.grupo14IngSis.snippetSearcherApp.dto.SnippetDetailResponse
-import com.grupo14IngSis.snippetSearcherApp.dto.SnippetRegisterRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetRunRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateRequest
-import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateResponse
-import com.grupo14IngSis.snippetSearcherApp.dto.TestExecutionRequest
-import com.grupo14IngSis.snippetSearcherApp.dto.TestExecutionResponse
-import com.grupo14IngSis.snippetSearcherApp.model.Snippet
-import com.grupo14IngSis.snippetSearcherApp.service.InvalidSnippetException
-import org.springframework.http.HttpStatus
-import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.*
-import org.springframework.web.multipart.MultipartFile
-import java.security.Principal
 
 @RestController
 @RequestMapping("/api/v1")
