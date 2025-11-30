@@ -1,125 +1,76 @@
 package com.grupo14IngSis.snippetSearcherApp.client
 
-import org.slf4j.MDC
+import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForSnippetResponse
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
-import org.springframework.http.MediaType
+import org.springframework.http.HttpMethod
 import org.springframework.stereotype.Component
-import org.springframework.web.client.HttpClientErrorException
-import org.springframework.web.client.HttpServerErrorException
 import org.springframework.web.client.RestTemplate
 
 @Component
 class RunnerClient(
-    private val restTemplate: RestTemplate = RestTemplate(),
+    private val restTemplate: RestTemplate,
+    @Value("\${runner.service.url}/api/v1") private val runnerUrl: String
 ) {
-    @Value("\${runner.service.url}")
-    private lateinit var runnerServiceUrl: String
-
-    fun executeSnippet(
-        content: String,
-        inputs: List<String>,
-    ): List<String> {
-        try {
-            val requestId = MDC.get("request_id")
-            val headers =
-                HttpHeaders().apply {
-                    contentType = MediaType.APPLICATION_JSON
-                    set("X-Request-ID", requestId)
-                }
-
-            val request =
-                ExecuteSnippetRequest(
-                    code = content,
-                    inputs = inputs,
-                )
-
-            val entity = HttpEntity(request, headers)
-            val url = "$runnerServiceUrl/execute"
-
-            val response =
-                restTemplate.postForEntity(
-                    url,
-                    entity,
-                    ExecuteSnippetResponse::class.java,
-                )
-
-            return response.body?.outputs ?: emptyList()
-        } catch (e: HttpClientErrorException) {
-            throw RunnerExecutionException(
-                "Error ejecutando snippet: ${e.responseBodyAsString}",
-                e,
-            )
-        } catch (e: HttpServerErrorException) {
-            throw RunnerExecutionException(
-                "Error del servidor runner: ${e.responseBodyAsString}",
-                e,
-            )
-        } catch (e: Exception) {
-            throw RunnerExecutionException(
-                "Error inesperado ejecutando snippet: ${e.message}",
-                e,
-            )
-        }
+    fun getRules(userId: String, task: String, language: String): Map<String, Any>? {
+        val url = "$runnerUrl/users/$userId/$task/rules/$language"
+        val headers = HttpHeaders()
+        val requestEntity = HttpEntity<Void>(headers)
+        val response = restTemplate.exchange(
+            url,
+            HttpMethod.GET,
+            requestEntity,
+            Map::class.java
+        )
+        return response.body as Map<String, Any>?
     }
 
-    fun validateSnippet(content: String): ValidationResult {
-        try {
-            val requestId = MDC.get("request_id")
-            val headers =
-                HttpHeaders().apply {
-                    contentType = MediaType.APPLICATION_JSON
-                    set("X-Request-ID", requestId)
-                }
+    fun patchRules(userId: String, task: String, language: String) {
+        val url = "$runnerUrl/users/$userId/$task/rules/$language"
+        val headers = HttpHeaders()
+        val requestEntity = HttpEntity<Void>(headers)
+        restTemplate.exchange(
+            url,
+            HttpMethod.PATCH,
+            requestEntity,
+            Void::class.java
+        )
+    }
 
-            val request = ValidateSnippetRequest(code = content)
-            val entity = HttpEntity(request, headers)
-            val url = "$runnerServiceUrl/validate"
+    fun registerUser(userId: String) {
+        val url = "$runnerUrl/users/$userId"
+        val headers = HttpHeaders()
+        val requestEntity = HttpEntity<Void>(headers)
+        restTemplate.exchange(
+            url,
+            HttpMethod.PUT,
+            requestEntity,
+            Void::class.java
+        )
+    }
 
-            val response =
-                restTemplate.postForEntity(
-                    url,
-                    entity,
-                    ValidationResponse::class.java,
-                )
+    fun deleteUser(userId: String) {
+        val url = "$runnerUrl/users/$userId"
+        val headers = HttpHeaders()
+        val requestEntity = HttpEntity<Void>(headers)
+        restTemplate.exchange(
+            url,
+            HttpMethod.DELETE,
+            requestEntity,
+            Void::class.java
+        )
+    }
 
-            return ValidationResult(
-                isValid = response.body?.isValid ?: false,
-                errors = response.body?.errors ?: emptyList(),
-            )
-        } catch (e: Exception) {
-            return ValidationResult(
-                isValid = false,
-                errors = listOf("Error validating snippet: ${e.message}"),
-            )
-        }
+    fun deleteSnippet(container: String, snippetId: String) {
+        val url = "$runnerUrl/snippet/$container/$snippetId"
+        val headers = HttpHeaders()
+        val requestEntity = HttpEntity<Void>(headers)
+        restTemplate.exchange(
+            url,
+            HttpMethod.DELETE,
+            requestEntity,
+            Void::class.java
+        )
     }
 }
-
-// DTOs para la comunicación con el servicio Runner
-data class ExecuteSnippetRequest(
-    val code: String,
-    val inputs: List<String>,
-)
-
-data class ExecuteSnippetResponse(
-    val outputs: List<String>,
-    val errors: List<String> = emptyList(),
-)
-
-data class ValidateSnippetRequest(
-    val code: String,
-)
-
-data class ValidationResponse(
-    val isValid: Boolean,
-    val errors: List<String> = emptyList(),
-)
-
-data class ValidationResult(
-    val isValid: Boolean,
-    val errors: List<String>,
-)
-
-class RunnerExecutionException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
