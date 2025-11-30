@@ -1,7 +1,7 @@
 package com.grupo14IngSis.snippetSearcherApp.controller
 import com.grupo14IngSis.snippetSearcherApp.client.AccessManagerClient
 import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
-import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestRequest
+import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestRequestDto
 import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.ShareSnippetRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetRegisterRequest
@@ -188,7 +188,7 @@ class SnippetController(
     fun createTest(
         authentication: Authentication,
         @PathVariable snippetId: String,
-        @RequestBody testData: CreateTestRequest,
+        @RequestBody testData: CreateTestRequestDto,
     ): ResponseEntity<CreateTestResponse> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
