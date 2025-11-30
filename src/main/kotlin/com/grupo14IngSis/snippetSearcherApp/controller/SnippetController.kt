@@ -229,7 +229,7 @@ class SnippetController(
    *
    * Start execution of a test
    */
-  @GetMapping("/snippets/{snippetId}/tests/{testId}")
+  @PutMapping("/snippets/{snippetId}/tests/{testId}")
   @PreAuthorize("isAuthenticated()")
   fun runTest(
     authentication: Authentication,
@@ -247,7 +247,7 @@ class SnippetController(
    *
    * Delete a test
    */
-  @GetMapping("/snippets/{snippetId}/tests/{testId}")
+  @DeleteMapping("/snippets/{snippetId}/tests/{testId}")
   @PreAuthorize("isAuthenticated()")
   fun removeTest(
     authentication: Authentication,
@@ -271,7 +271,7 @@ class SnippetController(
    *       input: {String?}
    *     }
    */
-  @GetMapping("/snippets/{snippetId}/run")
+  @PostMapping("/snippets/{snippetId}/run")
   @PreAuthorize("isAuthenticated()")
   fun runSnippet(
     authentication: Authentication,
@@ -289,7 +289,7 @@ class SnippetController(
    *
    * Cancel execution of a snippet
    */
-  @GetMapping("/snippets/{snippetId}/run")
+  @DeleteMapping("/snippets/{snippetId}/run")
   @PreAuthorize("isAuthenticated()")
   fun cancelSnippetExecution(
     authentication: Authentication,
@@ -318,7 +318,7 @@ class SnippetController(
    *         }
    *     }
    */
-  @GetMapping("/rules")
+  @PutMapping("/rules")
   @PreAuthorize("isAuthenticated()")
   fun updateRules(
     authentication: Authentication,

@@ -26,10 +26,10 @@ class RunnerClient(
         return response.body as Map<String, Any>?
     }
 
-    fun patchRules(userId: String, task: String, language: String) {
+    fun patchRules(userId: String, task: String, language: String, rules: Map<String, Any>) {
         val url = "$runnerUrl/users/$userId/$task/rules/$language"
         val headers = HttpHeaders()
-        val requestEntity = HttpEntity<Void>(headers)
+        val requestEntity = HttpEntity(rules, headers)
         restTemplate.exchange(
             url,
             HttpMethod.PATCH,
