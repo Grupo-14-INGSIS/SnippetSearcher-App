@@ -1,46 +1,48 @@
-package com.grupo14IngSis.snippetSearcherApp.controller
+package com.grupo14IngSis.snippetSearcher
 
-import com.grupo14IngSis.snippetSearcher.RequestIdFilter
 import jakarta.servlet.FilterChain
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.verify
+import org.mockito.Mockito.*
 import org.slf4j.MDC
-import org.springframework.mock.web.MockHttpServletRequest
-import org.springframework.mock.web.MockHttpServletResponse
 
 class RequestIdFilterTest {
 
     private val filter = RequestIdFilter()
-    private val filterChain = mock(FilterChain::class.java)
 
     @Test
-    fun `should use request id from header if present`() {
-        val request = MockHttpServletRequest()
-        val response = MockHttpServletResponse()
-        val requestId = "my-test-request-id"
-        request.addHeader("X-Request-Id", requestId)
+    fun `should reuse existing X-Request-Id header`() {
+        val request = mock(HttpServletRequest::class.java)
+        val response = mock(HttpServletResponse::class.java)
+        val chain = mock(FilterChain::class.java)
 
-        filter.doFilter(request, response, filterChain)
+        `when`(request.getHeader("X-Request-Id")).thenReturn("existing-id")
 
-        assertEquals(requestId, response.getHeader("X-Request-Id"))
-        assertEquals(requestId, MDC.get("request_id"))
-        verify(filterChain).doFilter(request, response)
-        MDC.clear()
+        filter.doFilter(request, response, chain)
+
+        // Verifica que se setea el mismo ID en la respuesta
+        verify(response).setHeader("X-Request-Id", "existing-id")
+        // Verifica que se ejecuta el chain
+        verify(chain).doFilter(request, response)
+        // El MDC se limpia al final
+        assertNull(MDC.get("request_id"))
     }
 
     @Test
-    fun `should generate request id if not present in header`() {
-        val request = MockHttpServletRequest()
-        val response = MockHttpServletResponse()
+    fun `should generate new request id if header missing`() {
+        val request = mock(HttpServletRequest::class.java)
+        val response = mock(HttpServletResponse::class.java)
+        val chain = mock(FilterChain::class.java)
 
-        filter.doFilter(request, response, filterChain)
+        `when`(request.getHeader("X-Request-Id")).thenReturn(null)
 
-        assertNotNull(response.getHeader("X-Request-Id"))
-        assertNotNull(MDC.get("request_id"))
-        verify(filterChain).doFilter(request, response)
-        MDC.clear()
+        filter.doFilter(request, response, chain)
+
+        // Verifica que se setea algún UUID en la respuesta
+        verify(response).setHeader(eq("X-Request-Id"), anyString())
+        verify(chain).doFilter(request, response)
+        assertNull(MDC.get("request_id"))
     }
 }

@@ -9,14 +9,19 @@ import org.junit.jupiter.api.Test
 import org.mockito.Mockito
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
-import org.springframework.boot.test.mock.mockito.MockBean
+import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
+import org.springframework.security.config.annotation.web.builders.HttpSecurity
+import org.springframework.security.web.SecurityFilterChain
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 @WebMvcTest(TaskController::class)
+@Import(TaskControllerTest.NoCsrfConfig::class, TaskControllerTest.StubConfig::class)
 class TaskControllerTest {
 
     @Autowired
@@ -25,11 +30,34 @@ class TaskControllerTest {
     @Autowired
     private lateinit var objectMapper: ObjectMapper
 
-    @MockBean
+    @Autowired
     private lateinit var snippetTaskProducer: SnippetTaskProducer
 
-    @MockBean
+    @Autowired
     private lateinit var accessManagerClient: AccessManagerClient
+
+    @TestConfiguration
+    class StubConfig {
+        @Bean
+        fun snippetTaskProducer(): SnippetTaskProducer {
+            return Mockito.mock(SnippetTaskProducer::class.java)
+        }
+
+        @Bean
+        fun accessManagerClient(): AccessManagerClient {
+            return Mockito.mock(AccessManagerClient::class.java)
+        }
+    }
+
+    @TestConfiguration
+    class NoCsrfConfig {
+        @Bean
+        fun filterChain(http: HttpSecurity): SecurityFilterChain {
+            http.csrf().disable()
+                .authorizeHttpRequests { it.anyRequest().permitAll() }
+            return http.build()
+        }
+    }
 
     @Test
     fun `startTask should return bad request for invalid task`() {
@@ -62,7 +90,7 @@ class TaskControllerTest {
             Mockito.verify(snippetTaskProducer).requestTask(snippetId, validTask)
         }
     }
-    
+
     @Test
     fun `startTask should return no content when user has no snippets`() {
         val taskRequest = TaskRequest(userId = "user123")

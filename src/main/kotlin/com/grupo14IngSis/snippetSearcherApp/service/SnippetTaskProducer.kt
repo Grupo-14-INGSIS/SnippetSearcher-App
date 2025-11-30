@@ -10,7 +10,7 @@ class SnippetTaskProducer(
     private val redisTemplate: RedisTemplate<String, String>,
 ) {
     @Value("\${redis.stream.key}")
-    private lateinit var streamKey: String
+    lateinit var streamKey: String
 
     fun requestTask(
         snippetId: String,
