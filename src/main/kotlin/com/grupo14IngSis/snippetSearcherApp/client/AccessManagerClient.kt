@@ -20,12 +20,13 @@ class AccessManagerClient(
         val url = "$accessManagerUrl/permissions?userId=$userId"
         val headers = HttpHeaders()
         val requestEntity = HttpEntity<Void>(headers)
-        val response = restTemplate.exchange(
-            url,
-            HttpMethod.GET,
-            requestEntity,
-            GetPermissionsForUserResponse::class.java,
-        )
+        val response =
+            restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                requestEntity,
+                GetPermissionsForUserResponse::class.java,
+            )
         return response.body ?: GetPermissionsForUserResponse(userId, emptyList(), emptyList())
     }
 }

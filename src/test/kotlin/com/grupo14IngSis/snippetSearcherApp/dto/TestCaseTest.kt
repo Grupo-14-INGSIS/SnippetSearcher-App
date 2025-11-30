@@ -2,20 +2,22 @@ package com.grupo14IngSis.snippetSearcherApp.dto
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 
 class TestCaseTest {
-
     @Test
     fun `should create TestCase with all fields`() {
-        val tc = TestCase(
-            id = "tc1",
-            name = "Addition test",
-            input = listOf("1", "2"),
-            expectedOutput = listOf("3"),
-            status = TestStatus.PASSED
-        )
+        val tc =
+            TestCase(
+                id = "tc1",
+                name = "Addition test",
+                input = listOf("1", "2"),
+                expectedOutput = listOf("3"),
+                status = TestStatus.PASSED,
+            )
 
         assertEquals("tc1", tc.id)
         assertEquals("Addition test", tc.name)

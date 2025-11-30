@@ -23,7 +23,6 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 @WebMvcTest(TaskController::class)
 @Import(TaskControllerTest.NoCsrfConfig::class, TaskControllerTest.StubConfig::class)
 class TaskControllerTest {
-
     @Autowired
     private lateinit var mockMvc: MockMvc
 
@@ -64,9 +63,11 @@ class TaskControllerTest {
         val taskRequest = TaskRequest(userId = "user123")
         val invalidTask = "invalidTask"
 
-        mockMvc.perform(post("/api/v1/snippets/{task}", invalidTask)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+            post("/api/v1/snippets/{task}", invalidTask)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(taskRequest)),
+        )
             .andExpect(status().isBadRequest)
             .andExpect(content().string("Invalid task '$invalidTask'. Valid tasks: [formatting, linting]"))
     }
@@ -80,9 +81,11 @@ class TaskControllerTest {
 
         Mockito.`when`(accessManagerClient.getPermissionsForUser(taskRequest.userId)).thenReturn(permissions)
 
-        mockMvc.perform(post("/api/v1/snippets/{task}", validTask)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+            post("/api/v1/snippets/{task}", validTask)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(taskRequest)),
+        )
             .andExpect(status().isAccepted)
             .andExpect(content().string("$validTask tasks queued: ${ownedSnippets.size}"))
 
@@ -99,9 +102,11 @@ class TaskControllerTest {
 
         Mockito.`when`(accessManagerClient.getPermissionsForUser(taskRequest.userId)).thenReturn(permissions)
 
-        mockMvc.perform(post("/api/v1/snippets/{task}", validTask)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(taskRequest)))
+        mockMvc.perform(
+            post("/api/v1/snippets/{task}", validTask)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(taskRequest)),
+        )
             .andExpect(status().isNoContent)
     }
 }

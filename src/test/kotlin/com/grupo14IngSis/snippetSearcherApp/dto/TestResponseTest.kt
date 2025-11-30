@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class TestResponseTest {
-
     @Test
     fun `TestResponse should have correct properties`() {
         val id = "tid"
@@ -14,16 +13,17 @@ class TestResponseTest {
         val expectedOutputs = listOf("output")
         val createdAt = "2023-11-30T10:00:00"
         val updatedAt = "2023-11-30T10:00:00"
-        
-        val testResponse = TestResponse(
-            id = id,
-            snippetId = snippetId,
-            name = name,
-            inputs = inputs,
-            expectedOutputs = expectedOutputs,
-            createdAt = createdAt,
-            updatedAt = updatedAt
-        )
+
+        val testResponse =
+            TestResponse(
+                id = id,
+                snippetId = snippetId,
+                name = name,
+                inputs = inputs,
+                expectedOutputs = expectedOutputs,
+                createdAt = createdAt,
+                updatedAt = updatedAt,
+            )
 
         assertEquals(id, testResponse.id)
         assertEquals(snippetId, testResponse.snippetId)

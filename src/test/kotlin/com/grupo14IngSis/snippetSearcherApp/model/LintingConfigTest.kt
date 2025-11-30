@@ -1,21 +1,21 @@
 package com.grupo14IngSis.snippetSearcherApp.model
 
 import jakarta.persistence.EntityManager
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase
+import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureTestEntityManager
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
-import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureTestEntityManager
+import kotlin.test.assertEquals
 
 @DataJpaTest
 @ImportAutoConfiguration(exclude = [org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration::class])
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
 @AutoConfigureTestEntityManager
 class LintingConfigTest {
-
     @Autowired
     private lateinit var entityManager: TestEntityManager
 

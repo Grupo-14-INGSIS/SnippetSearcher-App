@@ -2,20 +2,24 @@ package com.grupo14IngSis.snippetSearcherApp.dto
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertNull
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 
 class ValidationResponseTest {
-
     @Test
     fun `should create ValidationResponse with all fields`() {
-        val response = ValidationResponse(
-            isValid = false,
-            message = "Syntax error",
-            rule = "no-tabs",
-            line = 10,
-            column = 5
-        )
+        val response =
+            ValidationResponse(
+                isValid = false,
+                message = "Syntax error",
+                rule = "no-tabs",
+                line = 10,
+                column = 5,
+            )
 
         assertFalse(response.isValid)
         assertEquals("Syntax error", response.message)
@@ -26,13 +30,14 @@ class ValidationResponseTest {
 
     @Test
     fun `should allow null optional fields`() {
-        val response = ValidationResponse(
-            isValid = true,
-            message = "All good",
-            rule = null,
-            line = null,
-            column = null
-        )
+        val response =
+            ValidationResponse(
+                isValid = true,
+                message = "All good",
+                rule = null,
+                line = null,
+                column = null,
+            )
 
         assertTrue(response.isValid)
         assertEquals("All good", response.message)

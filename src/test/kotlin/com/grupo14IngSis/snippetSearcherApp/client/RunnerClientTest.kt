@@ -1,22 +1,29 @@
 package com.grupo14IngSis.snippetSearcherApp.client
 
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.mockito.Mockito.*
-import org.slf4j.MDC
+import org.junit.jupiter.api.assertNotNull
+import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentMatchers.anyString
+import org.mockito.ArgumentMatchers.eq
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.HttpServerErrorException
 import org.springframework.web.client.RestTemplate
+import kotlin.test.assertEquals
 
 class RunnerClientTest {
-
     private val restTemplate: RestTemplate = mock(RestTemplate::class.java)
-    private val client = RunnerClient(restTemplate).apply {
-        this.runnerServiceUrl = "http://localhost"
-    }
+    private val client =
+        RunnerClient(restTemplate).apply {
+            this.runnerServiceUrl = "http://localhost"
+        }
 
     @Test
     fun `executeSnippet returns outputs`() {
@@ -25,8 +32,8 @@ class RunnerClientTest {
             restTemplate.postForEntity(
                 anyString(),
                 any(HttpEntity::class.java),
-                eq(ExecuteSnippetResponse::class.java)
-            )
+                eq(ExecuteSnippetResponse::class.java),
+            ),
         ).thenReturn(ResponseEntity.ok(response))
 
         val result = client.executeSnippet("code", listOf("in"))
@@ -39,8 +46,8 @@ class RunnerClientTest {
             restTemplate.postForEntity(
                 anyString(),
                 any(HttpEntity::class.java),
-                eq(ExecuteSnippetResponse::class.java)
-            )
+                eq(ExecuteSnippetResponse::class.java),
+            ),
         ).thenReturn(ResponseEntity.ok(null))
 
         val result = client.executeSnippet("code", listOf("in"))
@@ -54,13 +61,14 @@ class RunnerClientTest {
             restTemplate.postForEntity(
                 anyString(),
                 any(HttpEntity::class.java),
-                eq(ExecuteSnippetResponse::class.java)
-            )
+                eq(ExecuteSnippetResponse::class.java),
+            ),
         ).thenThrow(ex)
 
-        val thrown = assertThrows(RunnerExecutionException::class.java) {
-            client.executeSnippet("code", listOf())
-        }
+        val thrown =
+            assertThrows(RunnerExecutionException::class.java) {
+                client.executeSnippet("code", listOf())
+            }
         assertTrue(thrown.message!!.contains("Error ejecutando snippet"))
     }
 
@@ -71,13 +79,14 @@ class RunnerClientTest {
             restTemplate.postForEntity(
                 anyString(),
                 any(HttpEntity::class.java),
-                eq(ExecuteSnippetResponse::class.java)
-            )
+                eq(ExecuteSnippetResponse::class.java),
+            ),
         ).thenThrow(ex)
 
-        val thrown = assertThrows(RunnerExecutionException::class.java) {
-            client.executeSnippet("code", listOf())
-        }
+        val thrown =
+            assertThrows(RunnerExecutionException::class.java) {
+                client.executeSnippet("code", listOf())
+            }
         assertTrue(thrown.message!!.contains("Error del servidor runner"))
     }
 
@@ -87,13 +96,14 @@ class RunnerClientTest {
             restTemplate.postForEntity(
                 anyString(),
                 any(HttpEntity::class.java),
-                eq(ExecuteSnippetResponse::class.java)
-            )
+                eq(ExecuteSnippetResponse::class.java),
+            ),
         ).thenThrow(RuntimeException("boom"))
 
-        val thrown = assertThrows(RunnerExecutionException::class.java) {
-            client.executeSnippet("code", listOf())
-        }
+        val thrown =
+            assertThrows(RunnerExecutionException::class.java) {
+                client.executeSnippet("code", listOf())
+            }
         assertTrue(thrown.message!!.contains("Error inesperado"))
     }
 
@@ -104,8 +114,8 @@ class RunnerClientTest {
             restTemplate.postForEntity(
                 anyString(),
                 any(HttpEntity::class.java),
-                eq(ValidationResponse::class.java)
-            )
+                eq(ValidationResponse::class.java),
+            ),
         ).thenReturn(ResponseEntity.ok(response))
 
         val result = client.validateSnippet("code")
@@ -119,8 +129,8 @@ class RunnerClientTest {
             restTemplate.postForEntity(
                 anyString(),
                 any(HttpEntity::class.java),
-                eq(ValidationResponse::class.java)
-            )
+                eq(ValidationResponse::class.java),
+            ),
         ).thenReturn(ResponseEntity.ok(null))
 
         val result = client.validateSnippet("code")
@@ -134,8 +144,8 @@ class RunnerClientTest {
             restTemplate.postForEntity(
                 anyString(),
                 any(HttpEntity::class.java),
-                eq(ValidationResponse::class.java)
-            )
+                eq(ValidationResponse::class.java),
+            ),
         ).thenThrow(RuntimeException("fail"))
 
         val result = client.validateSnippet("code")

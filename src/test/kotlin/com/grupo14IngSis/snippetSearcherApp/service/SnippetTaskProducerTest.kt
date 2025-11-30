@@ -10,7 +10,6 @@ import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.data.redis.core.StreamOperations
 
 class SnippetTaskProducerTest {
-
     private val redisTemplate: RedisTemplate<String, String> =
         mock(RedisTemplate::class.java) as RedisTemplate<String, String>
     private val streamOperations: StreamOperations<String, String, String> =

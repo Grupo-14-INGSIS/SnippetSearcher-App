@@ -2,11 +2,13 @@ package com.grupo14IngSis.snippetSearcherApp.dto
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertNull
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 
 class DtoFullCoverageTest {
-
     private val mapper = jacksonObjectMapper()
 
     @Test

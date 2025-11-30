@@ -2,31 +2,35 @@ package com.grupo14IngSis.snippetSearcherApp.dto
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertNotNull
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 
 class CreateTestRequestDtoTest {
-
     companion object {
         @JvmStatic
-        fun validInputs(): List<CreateTestRequestDto> = listOf(
-            CreateTestRequestDto(snippetId = "sid-1", input = listOf("1", "2", "3"), expected = "6"),
-            CreateTestRequestDto(snippetId = "alpha", input = listOf("hello", "world"), expected = "hello world"),
-            CreateTestRequestDto(snippetId = "with-empty-elements", input = listOf("", "non-empty", ""), expected = "ok"),
-            CreateTestRequestDto(snippetId = "unicode", input = listOf("á", "β", "漢字"), expected = "mixed"),
-            CreateTestRequestDto(snippetId = "long-expected", input = listOf("a", "b"), expected = "x".repeat(1024))
-        )
+        fun validInputs(): List<CreateTestRequestDto> =
+            listOf(
+                CreateTestRequestDto(snippetId = "sid-1", input = listOf("1", "2", "3"), expected = "6"),
+                CreateTestRequestDto(snippetId = "alpha", input = listOf("hello", "world"), expected = "hello world"),
+                CreateTestRequestDto(snippetId = "with-empty-elements", input = listOf("", "non-empty", ""), expected = "ok"),
+                CreateTestRequestDto(snippetId = "unicode", input = listOf("á", "β", "漢字"), expected = "mixed"),
+                CreateTestRequestDto(snippetId = "long-expected", input = listOf("a", "b"), expected = "x".repeat(1024)),
+            )
 
         @JvmStatic
-        fun edgeCases(): List<CreateTestRequestDto> = listOf(
-            CreateTestRequestDto(snippetId = "", input = listOf("data"), expected = "non-empty"),
-            CreateTestRequestDto(snippetId = "sid", input = emptyList(), expected = ""),
-            CreateTestRequestDto(snippetId = "spaces", input = listOf("   ", "\t"), expected = "   \t"),
-            CreateTestRequestDto(snippetId = "very-long-id", input = listOf("x"), expected = "y").copy(snippetId = "s".repeat(512)),
-            CreateTestRequestDto(snippetId = "control-chars", input = listOf("\n", "\r", "\u0000"), expected = "\n\r\u0000")
-        )
+        fun edgeCases(): List<CreateTestRequestDto> =
+            listOf(
+                CreateTestRequestDto(snippetId = "", input = listOf("data"), expected = "non-empty"),
+                CreateTestRequestDto(snippetId = "sid", input = emptyList(), expected = ""),
+                CreateTestRequestDto(snippetId = "spaces", input = listOf("   ", "\t"), expected = "   \t"),
+                CreateTestRequestDto(snippetId = "very-long-id", input = listOf("x"), expected = "y").copy(snippetId = "s".repeat(512)),
+                CreateTestRequestDto(snippetId = "control-chars", input = listOf("\n", "\r", "\u0000"), expected = "\n\r\u0000"),
+            )
     }
 
     @ParameterizedTest

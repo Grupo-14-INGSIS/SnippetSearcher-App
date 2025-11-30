@@ -12,7 +12,6 @@ import org.springframework.web.client.RestTemplate
 @ExtendWith(SpringExtension::class)
 @SpringBootTest(classes = [RestTemplateConfig::class])
 class RestTemplateConfigTest {
-
     @Autowired
     private lateinit var context: ApplicationContext
 

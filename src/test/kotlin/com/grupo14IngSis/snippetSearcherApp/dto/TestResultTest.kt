@@ -1,21 +1,22 @@
 package com.grupo14IngSis.snippetSearcherApp.dto
 
-import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertNull
+import kotlin.test.assertEquals
 
 class TestResultTest {
-
     @Test
     fun `should create TestResult with all fields`() {
-        val result = TestResult(
-            testCaseId = "tc1",
-            testCaseName = "simple case",
-            status = TestStatus.PASSED,
-            actualOutput = listOf("output1"),
-            expectedOutput = listOf("output1"),
-            errorMessage = null,
-            executionTime = 120L
-        )
+        val result =
+            TestResult(
+                testCaseId = "tc1",
+                testCaseName = "simple case",
+                status = TestStatus.PASSED,
+                actualOutput = listOf("output1"),
+                expectedOutput = listOf("output1"),
+                errorMessage = null,
+                executionTime = 120L,
+            )
 
         assertEquals("tc1", result.testCaseId)
         assertEquals("simple case", result.testCaseName)

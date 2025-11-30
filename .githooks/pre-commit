@@ -10,7 +10,7 @@ CHANGES_AFTER=$(git diff --name-only)
 if [ "$CHANGES_BEFORE" != "$CHANGES_AFTER" ]; then
         echo "Commit bloqueado: ktlintFormat modificó archivos. Se sugiere git diff > git add . > git commit si estás conforme con los cambios."
         exit 1 # código de error
-
+fi
 
 echo "Ejecutando ktlintCheck..."
 ./gradlew ktlintCheck --quiet # así solo muestra la información relevante

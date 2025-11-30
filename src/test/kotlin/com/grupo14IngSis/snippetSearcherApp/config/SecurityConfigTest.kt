@@ -14,9 +14,8 @@ import org.springframework.web.bind.annotation.RestController
 @WebMvcTest(controllers = [DummyController::class])
 @Import(SecurityConfig::class)
 class SecurityConfigTest(
-    @Autowired val mockMvc: MockMvc
+    @Autowired val mockMvc: MockMvc,
 ) {
-
     @Test
     fun `permitAll should allow access to non-api paths`() {
         mockMvc.get("/public")
@@ -41,12 +40,10 @@ class SecurityConfigTest(
                 status { isOk() }
             }
     }
-
 }
 
 @RestController
 class DummyController {
-
     @GetMapping("/public")
     fun publicEndpoint(): String = "ok"
 
