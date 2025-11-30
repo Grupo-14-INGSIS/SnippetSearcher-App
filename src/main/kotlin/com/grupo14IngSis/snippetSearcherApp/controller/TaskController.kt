@@ -1,14 +1,18 @@
 package com.grupo14IngSis.snippetSearcherApp.controller
 
 import com.grupo14IngSis.snippetSearcherApp.client.AccessManagerClient
-import com.grupo14IngSis.snippetSearcherApp.dto.*
+import com.grupo14IngSis.snippetSearcherApp.dto.TaskRequest
 import com.grupo14IngSis.snippetSearcherApp.service.SnippetTaskProducer
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.*
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/api/v1/snippets")
-class TaskController (
+class TaskController(
     private val snippetTaskProducer: SnippetTaskProducer,
     private val accessManagerClient: AccessManagerClient,
 ) {
@@ -26,7 +30,7 @@ class TaskController (
     @PostMapping("/{task}")
     fun startTask(
         @RequestBody taskRequest: TaskRequest,
-        @PathVariable task: String
+        @PathVariable task: String,
     ): ResponseEntity<String> {
         // Validate task
         if (task !in allowedTasks) {

@@ -12,6 +12,15 @@ import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.bind.annotation.DeleteMapping
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/api/v1")
@@ -41,8 +50,8 @@ class SnippetController(
   fun getAllSnippets(authentication: Authentication): ResponseEntity<Map<String, String>> {
     val jwt = authentication.principal as Jwt
     val userId = jwt.subject
-    val snippetPermissions: GetPermissionsForUserResponse = accessManagerClient.getPermissionsForUser(userId)?:
-      return ResponseEntity.status(404).build()
+    val snippetPermissions: GetPermissionsForUserResponse =
+      accessManagerClient.getPermissionsForUser(userId) ?: return ResponseEntity.status(404).build()
     val output = mutableMapOf<String, String>()
     snippetPermissions.owned.forEach { output[it] = "owner" }
     snippetPermissions.shared.forEach { output[it] = "shared" }

@@ -1,6 +1,5 @@
 package com.grupo14IngSis.snippetSearcherApp.client
 
-import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForSnippetResponse
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders

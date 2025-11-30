@@ -1,7 +1,9 @@
 package com.grupo14IngSis.snippetSearcher
 
 import com.newrelic.api.agent.NewRelic
-import jakarta.servlet.*
+import jakarta.servlet.FilterChain
+import jakarta.servlet.ServletRequest
+import jakarta.servlet.ServletResponse
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.MDC
@@ -9,8 +11,8 @@ import org.springframework.stereotype.Component
 import java.util.UUID
 
 @Component
-class RequestIdFilter : Filter {
-    override fun doFilter(
+class RequestIdFilter {
+    fun doFilter(
         request: ServletRequest,
         response: ServletResponse,
         chain: FilterChain,
