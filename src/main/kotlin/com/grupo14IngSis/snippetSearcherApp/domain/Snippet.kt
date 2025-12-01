@@ -10,6 +10,9 @@ data class Snippet (
     val snippetId: String,
 
     @Column(nullable = false)
+    val language: String,
+
+    @Column(nullable = false)
     val bucketId: String,
 
     @Column(name = "formatter_applied")

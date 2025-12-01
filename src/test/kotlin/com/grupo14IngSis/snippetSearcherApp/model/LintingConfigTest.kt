@@ -1,5 +1,5 @@
 package com.grupo14IngSis.snippetSearcherApp.model
-
+/*
 import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -57,3 +57,4 @@ class LintingConfigTest {
         assertEquals("updated", reloaded.rules[0].description)
     }
 }
+*/

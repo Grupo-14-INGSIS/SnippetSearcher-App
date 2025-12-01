@@ -1,7 +1,6 @@
-package com.grupo14IngSis.snippetSearcherAccessManager.repository
+package com.grupo14IngSis.snippetSearcherApp.repository
 
 import com.grupo14IngSis.snippetSearcherApp.domain.Snippet
-import jakarta.transaction.Transactional
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query

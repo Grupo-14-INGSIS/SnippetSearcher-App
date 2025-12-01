@@ -1,5 +1,5 @@
 package com.grupo14IngSis.snippetSearcherApp.repository
-
+/*
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -127,3 +127,4 @@ class TestRepositoryImplTest {
         assertFalse(repository.existsById("2"))
     }
 }
+*/

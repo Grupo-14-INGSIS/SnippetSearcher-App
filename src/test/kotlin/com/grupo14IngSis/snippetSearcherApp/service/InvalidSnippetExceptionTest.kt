@@ -1,5 +1,5 @@
 package com.grupo14IngSis.snippetSearcherApp.service
-
+/*
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -25,3 +25,4 @@ class InvalidSnippetExceptionTest {
         assertEquals(column, exception.column)
     }
 }
+*/

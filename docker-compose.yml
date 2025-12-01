@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8081:8080"
+      - "19081:8080"
     environment:
       DB_USER: app
       DB_PASSWORD: app
@@ -16,6 +16,7 @@ services:
       REDIS_PORT: 6379
     depends_on:
       - appdb
+      - accessmanager
 
   appdb:
     image: postgres:16
@@ -27,5 +28,33 @@ services:
       - app-pgdata:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d
 
+  accessmanager:
+    container_name: "access_manager"
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "19082:8080"
+    environment:
+      DB_USER: access_manager
+      DB_PASSWORD: access_manager
+      DB_NAME: compose-db
+      DB_HOST: accessmanager-db
+      DB_PORT: 5432
+    depends_on:
+      - accessmanager-db
+
+  accessmanager-db:
+    container_name: "accessmanager-db"
+    image: postgres:16
+    environment:
+      POSTGRES_USER: access_manager
+      POSTGRES_PASSWORD: access_manager
+      POSTGRES_DB: compose-db
+    volumes:
+      - accessmanager-pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+
 volumes:
   app-pgdata:
+  accessmanager-pgdata:

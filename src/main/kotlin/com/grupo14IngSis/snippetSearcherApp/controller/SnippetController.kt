@@ -7,6 +7,8 @@ import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForUserResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.ShareSnippetRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetRunRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateRequest
+import com.grupo14IngSis.snippetSearcherApp.repository.SnippetRepository
+import com.grupo14IngSis.snippetSearcherApp.service.SnippetTaskProducer
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
@@ -27,6 +29,8 @@ import org.springframework.web.bind.annotation.RestController
 class SnippetController(
    private val accessManagerClient: AccessManagerClient,
    private val runnerClient: RunnerClient,
+   private val snippetRepository: SnippetRepository,
+   private val snippetTaskProducer: SnippetTaskProducer,
 ) {
 
   private fun authorize(userId: String, snippetId: String): Boolean {
@@ -274,7 +278,22 @@ class SnippetController(
   ): ResponseEntity<Any> {
     val jwt = authentication.principal as Jwt
     val userId = jwt.subject
-    // TODO
+
+    val snippet = snippetRepository.findById(snippetId)
+    if (snippet.isEmpty) {
+      return ResponseEntity.notFound().build()
+    }
+
+    val payload = mapOf(
+      "task" to "execution",
+      "userId" to userId,
+      "snippetId" to snippetId,
+      "language" to snippet.get().language,
+      "input" to (request.input ?: "")
+    )
+
+    snippetTaskProducer.publish(payload)
+
     return ResponseEntity.ok().build()
   }
 
