@@ -1,6 +1,8 @@
 package com.grupo14IngSis.snippetSearcherApp.controller
 import com.grupo14IngSis.snippetSearcherApp.client.AccessManagerClient
 import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
+import com.grupo14IngSis.snippetSearcherApp.domain.Snippet
+import com.grupo14IngSis.snippetSearcherApp.domain.Test
 import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForUserResponse
@@ -8,6 +10,7 @@ import com.grupo14IngSis.snippetSearcherApp.dto.ShareSnippetRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetRunRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateRequest
 import com.grupo14IngSis.snippetSearcherApp.repository.SnippetRepository
+import com.grupo14IngSis.snippetSearcherApp.repository.TestRepository
 import com.grupo14IngSis.snippetSearcherApp.service.SnippetTaskProducer
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
@@ -23,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import java.util.UUID
 
 @RestController
 @RequestMapping("/api/v1")
@@ -30,6 +34,7 @@ class SnippetController(
    private val accessManagerClient: AccessManagerClient,
    private val runnerClient: RunnerClient,
    private val snippetRepository: SnippetRepository,
+   private val testRepository: TestRepository,
    private val snippetTaskProducer: SnippetTaskProducer,
 ) {
 
@@ -75,16 +80,17 @@ class SnippetController(
    *       ownerId: {userId}
    *     }
    */
-  @PutMapping("/snippets/{snippetId}")
+  @PutMapping("/snippets/{snippetId}?language={lanugage}")
   @PreAuthorize("isAuthenticated()")
   fun registerSnippet(
     authentication: Authentication,
     @PathVariable snippetId: String,
+    @PathVariable language: String,
   ): ResponseEntity<Any> {
     val jwt = authentication.principal as Jwt
     val userId = jwt.subject
     accessManagerClient.postPermission(userId, snippetId, "owner")
-    // Add to db
+    snippetRepository.save(Snippet(snippetId, language, snippetId))
     return ResponseEntity.ok().build()
   }
 
@@ -104,6 +110,8 @@ class SnippetController(
     if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
     accessManagerClient.deletePermissionForSnippet(snippetId)
     runnerClient.deleteSnippet("snippets", snippetId)
+    snippetRepository.deleteById(snippetId)
+    testRepository.deleteBySnippetId(snippetId)
     return ResponseEntity.ok().build()
   }
 
@@ -165,6 +173,11 @@ class SnippetController(
     val userId = jwt.subject
     accessManagerClient.getPermissionsForUser(userId)
     runnerClient.deleteUser(userId)
+    // TODO delete all snippets and tests from user
+    // get all snippets
+    // for each snippet, get all tests
+    // detele each test
+    // delete each snippet
     return ResponseEntity.ok().build()
   }
 
@@ -187,8 +200,9 @@ class SnippetController(
   ): ResponseEntity<List<String>> {
     val jwt = authentication.principal as Jwt
     val userId = jwt.subject
-    // TODO
-    return ResponseEntity.ok().build()
+    if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
+    val tests = testRepository.findTestIdsBySnippetId(snippetId)
+    return ResponseEntity.ok(tests)
   }
 
   /**
@@ -218,8 +232,15 @@ class SnippetController(
   ): ResponseEntity<CreateTestResponse> {
     val jwt = authentication.principal as Jwt
     val userId = jwt.subject
-    // TODO
-    return ResponseEntity.ok().build()
+    if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
+    val testId = UUID.randomUUID().toString()
+    val test = Test(
+      testId,
+      snippetId,
+      testData.input,
+      testData.expected)
+    testRepository.save(test)
+    return ResponseEntity.ok(CreateTestResponse(testId))
   }
 
   /**
@@ -254,7 +275,8 @@ class SnippetController(
   ): ResponseEntity<Any> {
     val jwt = authentication.principal as Jwt
     val userId = jwt.subject
-    // TODO
+    if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
+    testRepository.deleteById(testId)
     return ResponseEntity.ok().build()
   }
 
