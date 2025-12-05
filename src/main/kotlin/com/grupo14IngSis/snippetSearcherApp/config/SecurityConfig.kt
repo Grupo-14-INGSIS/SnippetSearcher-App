@@ -16,6 +16,8 @@ class SecurityConfig {
         http
             .authorizeHttpRequests { authorize ->
                 authorize
+                    .requestMatchers("/api/v1/testing").permitAll()
+                    .requestMatchers("/api/v1/testing/separator").permitAll()
                     .requestMatchers("/api/v1/**").authenticated()
                     .anyRequest().permitAll()
             }

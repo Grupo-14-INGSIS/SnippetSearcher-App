@@ -6,6 +6,9 @@ spring:
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      dialect: org.hibernate.dialect.PostgreSQLDialect
   security:
     oauth2:
       resourceserver:
@@ -21,6 +24,10 @@ redis:
 app:
   accessmanager:
     url: http://${ACCESS_MANAGER_HOST}:${ACCESS_MANAGER_PORT}
+
+runner:
+  service:
+    url: http://${RUNNER_HOST}:${RUNNER_PORT}
 
 server:
   port: 8080

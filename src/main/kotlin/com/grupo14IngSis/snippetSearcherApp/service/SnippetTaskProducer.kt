@@ -13,8 +13,16 @@ class SnippetTaskProducer(
 ) {
     private val logger = LoggerFactory.getLogger(SnippetTaskProducer::class.java)
 
-    fun publish(payload: Map<String, String>): RecordId? {
-        logger.info("Publishing task to stream '$streamKey' with payload: $payload")
-        return redisTemplate.opsForStream<String, String>().add(streamKey, payload)
+    fun publish(userId: String, snippets: List<String>, language: String, task: String) {
+        snippets.forEach {
+            val payload: Map<String, String> = mapOf(
+                "task" to task,
+                "userId" to userId,
+                "snippetId" to it,
+                "language" to language,
+            )
+            logger.info("Publishing task to stream '$streamKey' with payload: $payload")
+            redisTemplate.opsForStream<String, String>().add(streamKey, payload)
+        }
     }
 }

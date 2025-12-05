@@ -13,5 +13,7 @@ interface TestRepository : JpaRepository<Test, String> {
 
   fun findTestIdsBySnippetId(snippetId: String): List<String>
 
+  fun findBySnippetId(snippetId: String): List<Test>
+
 }
 

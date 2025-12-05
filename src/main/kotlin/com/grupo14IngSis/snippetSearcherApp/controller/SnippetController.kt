@@ -12,6 +12,8 @@ import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateRequest
 import com.grupo14IngSis.snippetSearcherApp.repository.SnippetRepository
 import com.grupo14IngSis.snippetSearcherApp.repository.TestRepository
 import com.grupo14IngSis.snippetSearcherApp.service.SnippetTaskProducer
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
@@ -36,6 +38,9 @@ class SnippetController(
    private val snippetRepository: SnippetRepository,
    private val testRepository: TestRepository,
    private val snippetTaskProducer: SnippetTaskProducer,
+
+   private val redisTemplate: RedisTemplate<String, String>,
+   @Value("\${redis.stream.key}") private val streamKey: String,
 ) {
 
   private fun authorize(userId: String, snippetId: String): Boolean {
@@ -80,7 +85,7 @@ class SnippetController(
    *       ownerId: {userId}
    *     }
    */
-  @PutMapping("/snippets/{snippetId}?language={lanugage}")
+  @PutMapping("/snippets/{snippetId}?language={language}")
   @PreAuthorize("isAuthenticated()")
   fun registerSnippet(
     authentication: Authentication,
@@ -176,7 +181,7 @@ class SnippetController(
     // TODO delete all snippets and tests from user
     // get all snippets
     // for each snippet, get all tests
-    // detele each test
+    // delete each test
     // delete each snippet
     return ResponseEntity.ok().build()
   }
@@ -300,21 +305,14 @@ class SnippetController(
   ): ResponseEntity<Any> {
     val jwt = authentication.principal as Jwt
     val userId = jwt.subject
+    if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
 
     val snippet = snippetRepository.findById(snippetId)
     if (snippet.isEmpty) {
       return ResponseEntity.notFound().build()
     }
 
-    val payload = mapOf(
-      "task" to "execution",
-      "userId" to userId,
-      "snippetId" to snippetId,
-      "language" to snippet.get().language,
-      "input" to (request.input ?: "")
-    )
-
-    snippetTaskProducer.publish(payload)
+    snippetTaskProducer.publish(userId, listOf(), "language", "test")
 
     return ResponseEntity.ok().build()
   }
@@ -332,6 +330,7 @@ class SnippetController(
   ): ResponseEntity<Any> {
     val jwt = authentication.principal as Jwt
     val userId = jwt.subject
+    if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
     // TODO
     return ResponseEntity.ok().build()
   }
@@ -361,7 +360,10 @@ class SnippetController(
   ): ResponseEntity<Any> {
     val jwt = authentication.principal as Jwt
     val userId = jwt.subject
+
+    val userSnippets = accessManagerClient.getPermissionsForUser(userId) ?: return ResponseEntity.status(404).build()
     runnerClient.patchRules(userId, request.task, request.language, request.rules)
+    snippetTaskProducer.publish(userId, userSnippets.owned, request.language, request.task)
     return ResponseEntity.ok().build()
   }
 
@@ -389,5 +391,25 @@ class SnippetController(
     val userId = jwt.subject
     runnerClient.getRules(userId, task, language)
     return ResponseEntity.ok().build()
+  }
+
+  @PostMapping("/testing/separator")
+  fun printSeparator() {
+    println(
+      "###############################################################\n" +
+      "# SEPARATOR SEPARATOR SEPARATOR SEPARATOR SEPARATOR SEPARATOR #\n" +
+      "###############################################################")
+  }
+
+  @PostMapping("/testing")
+  fun sendTestingMessage() {
+    val payload: Map<String, String> = mapOf(
+      "task" to "test",
+      "userId" to "userId",
+      "snippetId" to "it",
+      "language" to "language",
+    )
+
+    redisTemplate.opsForStream<String, String>().add(streamKey, payload)
   }
 }
