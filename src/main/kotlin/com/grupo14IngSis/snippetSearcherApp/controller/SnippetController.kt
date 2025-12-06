@@ -8,6 +8,7 @@ import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForUserResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.ShareSnippetRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetRunRequest
+import com.grupo14IngSis.snippetSearcherApp.dto.SnippetStatusUpdateRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateRequest
 import com.grupo14IngSis.snippetSearcherApp.repository.SnippetRepository
 import com.grupo14IngSis.snippetSearcherApp.repository.TestRepository
@@ -391,6 +392,31 @@ class SnippetController(
     val userId = jwt.subject
     runnerClient.getRules(userId, task, language)
     return ResponseEntity.ok().build()
+  }
+
+  /**
+   * PATCH  /api/v1/snippets/{snippetId}/status
+   *
+   * Update snippet status
+   *
+   * Request:
+   *
+   *     {
+   *         task: {task}
+   *         status: boolean
+   *     }
+   */
+  @PatchMapping("/snippets/{snippetId}/status")
+  fun updateSnippetStatus(
+    @PathVariable snippetId: String,
+    @RequestBody request: SnippetStatusUpdateRequest
+  ): ResponseEntity<String> {
+    when (request.task) {
+      "lint" -> snippetRepository.setFormattingState(snippetId, request.status)
+      "format" -> snippetRepository.setLintingState(snippetId, request.status)
+      else -> return ResponseEntity.badRequest().body("Task ${request.task} not found")
+    }
+    return ResponseEntity.noContent().build()
   }
 
   @PostMapping("/testing/separator")

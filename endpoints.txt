@@ -39,6 +39,7 @@ SnippetController
     DELETE /api/v1/snippets/{snippetId}/run
     PUT    /api/v1/rules
     GET    /api/v1/rules
+    PATCH  /api/v1/rules
 
 Detailed:
 SnippetController
@@ -118,3 +119,10 @@ SnippetController
             rule2: {val2}
             ...
         }
+    PATCH  /api/v1/snippets/{snippetId}/status
+        Update snippet status
+        Request:
+            {
+                task: {task}
+                status: boolean
+            }
