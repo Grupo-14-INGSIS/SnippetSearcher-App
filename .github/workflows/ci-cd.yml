@@ -134,6 +134,6 @@ jobs:
                    \"event_type\": \"new-image-ready\",
                    \"client_payload\": {
                        \"environment\": \"production\",
-                       \"service\": \"snippet-service\"
+                       \"service\": \"snippetsearcher-app\"
                        }
                  }"
