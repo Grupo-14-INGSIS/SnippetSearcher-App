@@ -1,5 +1,6 @@
 package com.grupo14IngSis.snippetSearcherApp.client
 
+import com.grupo14IngSis.snippetSearcherApp.dto.SnippetExecutionResponse
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
@@ -71,5 +72,19 @@ class RunnerClient(
             requestEntity,
             Void::class.java
         )
+    }
+
+    fun runSnippet(snippetId: String, version: String?): SnippetExecutionResponse {
+        var url ="$runnerUrl/snippets/$snippetId/execution"
+        if (version != null) url += "?version=$version"
+        val headers = HttpHeaders()
+        val requestEntity = HttpEntity<Void>(headers)
+        val response = restTemplate.exchange(
+            url,
+            HttpMethod.POST,
+            requestEntity,
+            SnippetExecutionResponse::class.java
+        )
+        return response.body as SnippetExecutionResponse
     }
 }

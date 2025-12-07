@@ -302,6 +302,7 @@ class SnippetController(
   fun runSnippet(
     authentication: Authentication,
     @PathVariable snippetId: String,
+    @RequestParam(required = false) version: String,
     @RequestBody request: SnippetRunRequest
   ): ResponseEntity<Any> {
     val jwt = authentication.principal as Jwt
@@ -313,9 +314,9 @@ class SnippetController(
       return ResponseEntity.notFound().build()
     }
 
-    snippetTaskProducer.publish(userId, listOf(), "language", "test")
+    val output = runnerClient.runSnippet(snippet.get().snippetId, version)
 
-    return ResponseEntity.ok().build()
+    return ResponseEntity.ok().body(output)
   }
 
   /**
