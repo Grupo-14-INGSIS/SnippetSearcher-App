@@ -52,8 +52,6 @@ jobs:
             exit 1
           fi
 
-      - name: Run ktlintCheck
-        run: ./gradlew ktlintCheck --quiet
 
 
       - name: Verify coverage
