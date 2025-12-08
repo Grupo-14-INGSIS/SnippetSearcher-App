@@ -10,22 +10,32 @@ import org.springframework.web.client.RestTemplate
 @Component
 class RunnerClient(
     private val restTemplate: RestTemplate,
-    @Value("\${runner.service.url}/api/v1") private val runnerUrl: String
+    @Value("\${runner.service.url}/api/v1") private val runnerUrl: String,
 ) {
-    fun getRules(userId: String, task: String, language: String): Map<String, Any>? {
+    fun getRules(
+        userId: String,
+        task: String,
+        language: String,
+    ): Map<String, Any>? {
         val url = "$runnerUrl/users/$userId/$task/rules/$language"
         val headers = HttpHeaders()
         val requestEntity = HttpEntity<Void>(headers)
-        val response = restTemplate.exchange(
-            url,
-            HttpMethod.GET,
-            requestEntity,
-            Map::class.java
-        )
+        val response =
+            restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                requestEntity,
+                Map::class.java,
+            )
         return response.body as Map<String, Any>?
     }
 
-    fun patchRules(userId: String, task: String, language: String, rules: Map<String, Any>) {
+    fun patchRules(
+        userId: String,
+        task: String,
+        language: String,
+        rules: Map<String, Any>,
+    ) {
         val url = "$runnerUrl/users/$userId/$task/rules/$language"
         val headers = HttpHeaders()
         val requestEntity = HttpEntity(rules, headers)
@@ -33,7 +43,7 @@ class RunnerClient(
             url,
             HttpMethod.PATCH,
             requestEntity,
-            Void::class.java
+            Void::class.java,
         )
     }
 
@@ -45,7 +55,7 @@ class RunnerClient(
             url,
             HttpMethod.PUT,
             requestEntity,
-            Void::class.java
+            Void::class.java,
         )
     }
 
@@ -57,11 +67,14 @@ class RunnerClient(
             url,
             HttpMethod.DELETE,
             requestEntity,
-            Void::class.java
+            Void::class.java,
         )
     }
 
-    fun deleteSnippet(container: String, snippetId: String) {
+    fun deleteSnippet(
+        container: String,
+        snippetId: String,
+    ) {
         val url = "$runnerUrl/snippet/$container/$snippetId"
         val headers = HttpHeaders()
         val requestEntity = HttpEntity<Void>(headers)
@@ -69,7 +82,7 @@ class RunnerClient(
             url,
             HttpMethod.DELETE,
             requestEntity,
-            Void::class.java
+            Void::class.java,
         )
     }
 }

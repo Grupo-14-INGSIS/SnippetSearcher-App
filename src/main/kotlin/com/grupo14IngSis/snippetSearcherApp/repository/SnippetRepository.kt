@@ -8,12 +8,17 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface SnippetRepository : JpaRepository<Snippet, String> {
+    @Modifying
+    @Query("UPDATE Snippet s SET s.linterApplied = :state WHERE s.snippetId = :snippetId")
+    fun setLintingState(
+        snippetId: String,
+        state: Boolean,
+    )
 
-  @Modifying
-  @Query("UPDATE Snippet s SET s.linterApplied = :state WHERE s.snippetId = :snippetId")
-  fun setLintingState(snippetId: String, state: Boolean)
-
-  @Modifying
-  @Query("UPDATE Snippet s SET s.formatterApplied = :state WHERE s.snippetId = :snippetId")
-  fun setFormattingState(snippetId: String, state: Boolean)
+    @Modifying
+    @Query("UPDATE Snippet s SET s.formatterApplied = :state WHERE s.snippetId = :snippetId")
+    fun setFormattingState(
+        snippetId: String,
+        state: Boolean,
+    )
 }

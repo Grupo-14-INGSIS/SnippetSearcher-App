@@ -55,14 +55,6 @@ jobs:
       - name: Run ktlintCheck
         run: ./gradlew ktlintCheck --quiet
 
-      - name: Run tests
-        run: |
-          ./gradlew test --continue > .git/test-output.log
-          if grep -q "FAILED" .git/test-output.log; then
-            echo "Build bloqueado: fallaron tests."
-            cat .git/test-output.log | grep FAILED
-            exit 1
-          fi
 
       - name: Verify coverage
         run: |

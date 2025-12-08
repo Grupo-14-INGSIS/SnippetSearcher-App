@@ -16,33 +16,45 @@ class AccessManagerClient(
     private val restTemplate: RestTemplate,
     @Value("\${app.accessmanager.url}") private val accessManagerUrl: String,
 ) {
-    fun getPermission(userId: String, snippetId: String): GetPermissionResponse? {
+    fun getPermission(
+        userId: String,
+        snippetId: String,
+    ): GetPermissionResponse? {
         val url = "$accessManagerUrl/permissions?userId=$userId&snippetId=$snippetId"
         val headers = HttpHeaders()
         val requestEntity = HttpEntity<Void>(headers)
-        val response = restTemplate.exchange(
-            url,
-            HttpMethod.GET,
-            requestEntity,
-            GetPermissionResponse::class.java
-        )
+        val response =
+            restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                requestEntity,
+                GetPermissionResponse::class.java,
+            )
         return response.body
     }
 
-    fun postPermission(userId: String, snippetId: String, role: String): GetPermissionResponse? {
+    fun postPermission(
+        userId: String,
+        snippetId: String,
+        role: String,
+    ): GetPermissionResponse? {
         val url = "$accessManagerUrl/permissions"
         val headers = HttpHeaders()
         val requestEntity = HttpEntity(PostPermissionRequest(userId, snippetId, role), headers)
-        val response = restTemplate.exchange<GetPermissionResponse>(
-            url,
-            HttpMethod.POST,
-            requestEntity,
-            GetPermissionResponse::class.java
-        )
+        val response =
+            restTemplate.exchange<GetPermissionResponse>(
+                url,
+                HttpMethod.POST,
+                requestEntity,
+                GetPermissionResponse::class.java,
+            )
         return response.body
     }
 
-    fun deletePermission(userId: String, snippetId: String) {
+    fun deletePermission(
+        userId: String,
+        snippetId: String,
+    ) {
         val url = "$accessManagerUrl/permissions?userId=$userId&snippetId=$snippetId"
         val headers = HttpHeaders()
         val requestEntity = HttpEntity<Void>(headers)
@@ -50,7 +62,7 @@ class AccessManagerClient(
             url,
             HttpMethod.DELETE,
             requestEntity,
-            Void::class.java
+            Void::class.java,
         )
     }
 
@@ -58,12 +70,13 @@ class AccessManagerClient(
         val url = "$accessManagerUrl/permissions?snippetId=$snippetId"
         val headers = HttpHeaders()
         val requestEntity = HttpEntity<Void>(headers)
-        val response = restTemplate.exchange(
-            url,
-            HttpMethod.GET,
-            requestEntity,
-            GetPermissionsForSnippetResponse::class.java
-        )
+        val response =
+            restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                requestEntity,
+                GetPermissionsForSnippetResponse::class.java,
+            )
         return response.body
     }
 
@@ -71,16 +84,17 @@ class AccessManagerClient(
         val url = "$accessManagerUrl/permissions?userId=$userId"
         val headers = HttpHeaders()
         val requestEntity = HttpEntity<Void>(headers)
-        val response = restTemplate.exchange(
-            url,
-            HttpMethod.GET,
-            requestEntity,
-            GetPermissionsForUserResponse::class.java
-        )
+        val response =
+            restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                requestEntity,
+                GetPermissionsForUserResponse::class.java,
+            )
         return response.body
     }
 
-    fun deletePermissionForSnippet(snippetId: String){
+    fun deletePermissionForSnippet(snippetId: String) {
         val url = "$accessManagerUrl/permissions?snippetId=$snippetId"
         val headers = HttpHeaders()
         val requestEntity = HttpEntity<Void>(headers)
@@ -88,11 +102,11 @@ class AccessManagerClient(
             url,
             HttpMethod.DELETE,
             requestEntity,
-            Void::class.java
+            Void::class.java,
         )
     }
 
-    fun deletePermissionForUser(userId: String){
+    fun deletePermissionForUser(userId: String) {
         val url = "$accessManagerUrl/permissions?userId=$userId"
         val headers = HttpHeaders()
         val requestEntity = HttpEntity<Void>(headers)
@@ -100,7 +114,7 @@ class AccessManagerClient(
             url,
             HttpMethod.DELETE,
             requestEntity,
-            Void::class.java
+            Void::class.java,
         )
     }
 }
