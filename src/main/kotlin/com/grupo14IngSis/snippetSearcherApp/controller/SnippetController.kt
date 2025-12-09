@@ -263,7 +263,7 @@ class SnippetController(
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
         // TODO
-        return ResponseEntity.ok().build()
+        return ResponseEntity.ok().body(userId)
     }
 
     /**

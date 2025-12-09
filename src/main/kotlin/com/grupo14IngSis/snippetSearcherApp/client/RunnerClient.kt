@@ -16,7 +16,7 @@ class RunnerClient(
         userId: String,
         task: String,
         language: String,
-    ): Map<String, Any>? {
+    ): Map<*, *>? {
         val url = "$runnerUrl/users/$userId/$task/rules/$language"
         val headers = HttpHeaders()
         val requestEntity = HttpEntity<Void>(headers)
@@ -27,7 +27,7 @@ class RunnerClient(
                 requestEntity,
                 Map::class.java,
             )
-        return response.body as Map<String, Any>?
+        return response.body
     }
 
     fun patchRules(
