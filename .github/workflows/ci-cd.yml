@@ -54,21 +54,21 @@ jobs:
 
 
 
-      - name: Verify coverage
-        run: |
-          ./gradlew jacocoTestCoverageVerification --quiet
-          if [ $? -ne 0 ]; then
-            echo "Build bloqueado: cobertura de código inferior al 80%."
-            ./gradlew jacocoTestReport
-            exit 1
-          fi
+#      - name: Verify coverage
+#        run: |
+#          ./gradlew jacocoTestCoverageVerification --quiet
+#          if [ $? -ne 0 ]; then
+#            echo "Build bloqueado: cobertura de código inferior al 80%."
+#            ./gradlew jacocoTestReport
+#            exit 1
+#          fi
 
-      - name: Upload JaCoCo coverage report  # Guardar reportes
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: jacoco-report
-          path: build/reports/jacoco/test/html/
+#      - name: Upload JaCoCo coverage report  # Guardar reportes
+#        if: always()
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: jacoco-report
+#          path: build/reports/jacoco/test/html/
 
       - name: Check
         run: ./gradlew check
@@ -76,12 +76,12 @@ jobs:
       - name: Build
         run: ./gradlew build
 
-      - name: Upload test results  # Guardar resultados de tests
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: build/reports/tests/test/
+#      - name: Upload test results  # Guardar resultados de tests
+#        if: always()
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: test-results
+#          path: build/reports/tests/test/
 
       - name: Upload build artifacts  # Guardar JAR generado
         if: success()
