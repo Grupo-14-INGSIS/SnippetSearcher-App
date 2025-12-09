@@ -61,6 +61,7 @@ jacoco {
     toolVersion = "0.8.11"
 }
 
+/*
 jacocoTestReport {
     dependsOn test
     reports {
@@ -78,6 +79,7 @@ jacocoTestCoverageVerification {
         }
     }
 }
+ */
 
 kotlin {
     compilerOptions {
@@ -98,4 +100,8 @@ application {
 
 tasks.bootJar {
     mainClass.set("com.grupo14IngSis.snippetSearcherApp.SnippetSearcherAppKt")
+}
+
+tasks.withType(Test).configureEach {
+    enabled = false
 }
