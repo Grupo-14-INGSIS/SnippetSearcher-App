@@ -38,8 +38,8 @@ dependencies {
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     implementation 'io.lettuce:lettuce-core'
 
-    implementation 'org.postgresql:postgresql'
-
+    runtimeOnly 'org.postgresql:postgresql:42.7.1'
+    
     testImplementation "org.junit.jupiter:junit-jupiter:5.9.3"
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5'
