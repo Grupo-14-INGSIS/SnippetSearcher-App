@@ -24,9 +24,10 @@ Extra:
 + Get user rules
 
 Endpoints:
+
 SnippetController
     GET    /api/v1/snippets
-    PUT    /api/v1/snippets/{snippetId}
+    PUT    /api/v1/snippets/{snippetId}?language={language}
     DELETE /api/v1/snippets/{snippetId}
     PUT    /api/v1/snippets/{snippetId}/permission
     DELETE /api/v1/snippets/{snippetId}/permission
@@ -35,21 +36,24 @@ SnippetController
     POST   /api/v1/snippets/{snippetId}/tests
     PUT    /api/v1/snippets/{snippetId}/tests/{testId}
     DELETE /api/v1/snippets/{snippetId}/tests/{testId}
-    POST   /api/v1/snippets/{snippetId}/run
+    POST   /api/v1/snippets/{snippetId}/run?version={version}
     DELETE /api/v1/snippets/{snippetId}/run
     PUT    /api/v1/rules
-    GET    /api/v1/rules
+    GET    /api/v1/rules?task={task}&language={language}
+
+    POST   /api/v1/testing
+    POST   /api/v1/testing/separator
 
 Detailed:
 SnippetController
     GET    /api/v1/snippets
         Get all snippets available for a user
         Response: a map containing the id of each snippet associated with the user's permission
-        {
-            snippet1: owner,
-            snippet2: shared,
-            ...
-        }
+            {
+                snippet1: owner,
+                snippet2: shared,
+                ...
+            }
         If the user is not found, returns 404
     PUT    /api/v1/snippets/{snippetId}?language={language}
         Register a snippet into App's database. It also adds owner permission to the current user.
@@ -60,9 +64,9 @@ SnippetController
     PUT    /api/v1/snippets/{snippetId}/permission
         Share a snippet with another user
         Request:
-        {
-            userId: {userId}
-        }
+            {
+                userId: {userId}
+            }
     DELETE /api/v1/snippets/{snippetId}/permission
         Remove permission for another user
     DELETE /api/v1/users
@@ -70,52 +74,58 @@ SnippetController
     GET    /api/v1/snippets/{snippetId}/tests
         Get all tests for a snippet
         Response: a list containing all tests IDs
-        {
-            [testId]
-        }
+            {
+                [testId]
+            }
     POST   /api/v1/snippets/{snippetId}/tests
         Create a test
         Request:
-        {
-            input: [String]
-            expected: {String}
-        }
+            {
+                input: [String]
+                expected: {String}
+            }
         Response
-        {
-            testId: {testId}
-        }
+            {
+                testId: {testId}
+            }
     PUT    /api/v1/snippets/{snippetId}/tests/{testId}
         Start execution of a test
     DELETE /api/v1/snippets/{snippetId}/tests/{testId}
         Delete a test
-    POST   /api/v1/snippets/{snippetId}/run
+    POST   /api/v1/snippets/{snippetId}/run?version={version}
         Start execution of a snippet or provide input
+        Version is not required
         Request (not required for starting):
-        {
-            input: {String}
-        }
+            {
+                input: {String}
+            }
+        Response:
+            {
+                status: COMPLETED/OUTPUT/WAITING/ERROR,
+                message: String
+            }
     DELETE /api/v1/snippets/{snippetId}/run
         Cancel execution of a snippet
     PUT    /api/v1/rules
         Modify task rules
         Request:
-        {
-            task: {formatting/linting}
-            language: {language}
-            rules: {
-                rule1: {var1}
-                rule2: {val2}
-                ...
+            {
+                task: {formatting/linting}
+                language: {language}
+                rules: {
+                    rule1: {var1}
+                    rule2: {val2}
+                    ...
+                }
             }
-        }
     GET    /api/v1/rules?task={task}&language={language}
         Get all user's rules for a specific task and language
         Response:
-        {
-            rule1: {val1}
-            rule2: {val2}
-            ...
-        }
+            {
+                rule1: {val1}
+                rule2: {val2}
+                ...
+            }
 
 Additional endpoints:
     These endpoints are meant for develop and debugging only.
