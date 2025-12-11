@@ -12,6 +12,7 @@ import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateRequest
 import com.grupo14IngSis.snippetSearcherApp.repository.SnippetRepository
 import com.grupo14IngSis.snippetSearcherApp.repository.TestRepository
 import com.grupo14IngSis.snippetSearcherApp.service.SnippetTaskProducer
+import jakarta.websocket.server.PathParam
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.http.ResponseEntity
@@ -75,22 +76,16 @@ class SnippetController(
     /**
      * PUT    /api/v1/snippets/{snippetId}
      *
-     * Register a snippet
+     * Register a snippet into App's database. It also adds owner permission to the current user.
      *
-     * Request:
-     *
-     *     {
-     *       snippetId: {snippetId}
-     *       language: {language}
-     *       ownerId: {userId}
-     *     }
+     * This endpoint is meant to be used by Runner after creating a snippet, using the same JWT used for the creation request
      */
-    @PutMapping("/snippets/{snippetId}?language={language}")
+    @PutMapping("/snippets/{snippetId}")
     @PreAuthorize("isAuthenticated()")
     fun registerSnippet(
         authentication: Authentication,
         @PathVariable snippetId: String,
-        @PathVariable language: String,
+        @RequestParam (required = true) language: String,
     ): ResponseEntity<Any> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject

@@ -44,18 +44,17 @@ Detailed:
 SnippetController
     GET    /api/v1/snippets
         Get all snippets available for a user
-        Response:
+        Response: a map containing the id of each snippet associated with the user's permission
         {
-            [snippetId]
+            snippet1: owner,
+            snippet2: shared,
+            ...
         }
-    PUT    /api/v1/snippets/{snippetId}
-        Register a snippet
-        Request:
-        {
-            snippetId: {snippetId}
-            language: {language}
-            owner: {userId}
-        }
+        If the user is not found, returns 404
+    PUT    /api/v1/snippets/{snippetId}?language={language}
+        Register a snippet into App's database. It also adds owner permission to the current user.
+        This endpoint is meant to be used by Runner after creating a snippet, using the same JWT used for the creation request
+        No request body is required as the userId is taken from the JWT and the language is a PathVariable
     DELETE /api/v1/snippets/{snippetId}
         Delete a snippet
     PUT    /api/v1/snippets/{snippetId}/permission
@@ -67,10 +66,10 @@ SnippetController
     DELETE /api/v1/snippets/{snippetId}/permission
         Remove permission for another user
     DELETE /api/v1/users
-        Delete a user
+        Delete a user from all databases
     GET    /api/v1/snippets/{snippetId}/tests
         Get all tests for a snippet
-        Response:
+        Response: a list containing all tests IDs
         {
             [testId]
         }
@@ -78,7 +77,6 @@ SnippetController
         Create a test
         Request:
         {
-            snippetId: {snippetId}
             input: [String]
             expected: {String}
         }
@@ -89,10 +87,10 @@ SnippetController
     PUT    /api/v1/snippets/{snippetId}/tests/{testId}
         Start execution of a test
     DELETE /api/v1/snippets/{snippetId}/tests/{testId}
-        (sin descripción adicional en la información original)
+        Delete a test
     POST   /api/v1/snippets/{snippetId}/run
         Start execution of a snippet or provide input
-        Request:
+        Request (not required for starting):
         {
             input: {String}
         }
@@ -111,10 +109,39 @@ SnippetController
             }
         }
     GET    /api/v1/rules?task={task}&language={language}
-        Get all rules for a user
+        Get all user's rules for a specific task and language
         Response:
         {
             rule1: {val1}
             rule2: {val2}
             ...
         }
+
+Additional endpoints:
+    These endpoints are meant for develop and debugging only.
+    These endpoints should be removed from production as well as their associated logic
+
+    POST   /api/v1/testing
+        Sends a Redis message containing:
+            {
+                task: "test",
+                userId: "userId",
+                snippetId: "it",
+                language: "language"
+            }
+        If successful, Runner should print:
+            ###########################################################
+            # TESTING TESTING TESTING TESTING TESTING TESTING TESTING #
+            ###########################################################
+            #
+            # {snippetId}
+            #
+            ###########################################################
+            # TESTING TESTING TESTING TESTING TESTING TESTING TESTING #
+            ###########################################################
+    POST   /api/v1/testing/separator
+        Prints a separator on console, useful for separating logs and identifying checkpoints
+        Prints:
+            ###############################################################
+            # SEPARATOR SEPARATOR SEPARATOR SEPARATOR SEPARATOR SEPARATOR #
+            ###############################################################
