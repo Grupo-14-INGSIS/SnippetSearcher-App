@@ -13,7 +13,6 @@ import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateRequest
 import com.grupo14IngSis.snippetSearcherApp.repository.SnippetRepository
 import com.grupo14IngSis.snippetSearcherApp.repository.TestRepository
 import com.grupo14IngSis.snippetSearcherApp.service.SnippetTaskProducer
-import jakarta.websocket.server.PathParam
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.http.ResponseEntity
@@ -34,393 +33,393 @@ import java.util.UUID
 @RestController
 @RequestMapping("/api/v1")
 class SnippetController(
-  private val accessManagerClient: AccessManagerClient,
-  private val runnerClient: RunnerClient,
-  private val snippetRepository: SnippetRepository,
-  private val testRepository: TestRepository,
-  private val snippetTaskProducer: SnippetTaskProducer,
-  private val redisTemplate: RedisTemplate<String, String>,
-  @Value("\${redis.stream.key}") private val streamKey: String,
+    private val accessManagerClient: AccessManagerClient,
+    private val runnerClient: RunnerClient,
+    private val snippetRepository: SnippetRepository,
+    private val testRepository: TestRepository,
+    private val snippetTaskProducer: SnippetTaskProducer,
+    private val redisTemplate: RedisTemplate<String, String>,
+    @Value("\${redis.stream.key}") private val streamKey: String,
 ) {
-  private fun authorize(
-    userId: String,
-    snippetId: String,
-  ): Boolean {
-    val permission = accessManagerClient.getPermission(userId, snippetId) ?: return false
-    return permission.role.lowercase() == "owner"
-  }
-
-  /**
-   * GET /api/v1/snippets
-   *
-   * Get all snippets available for a user
-   *
-   * Response:
-   *
-   *     {
-   *         [snippetId]
-   *     }
-   *     */
-  @GetMapping("/snippets")
-  @PreAuthorize("isAuthenticated()")
-  fun getAllSnippets(authentication: Authentication): ResponseEntity<Map<String, String>> {
-    val jwt = authentication.principal as Jwt
-    val userId = jwt.subject
-    val snippetPermissions: GetPermissionsForUserResponse =
-      accessManagerClient.getPermissionsForUser(userId) ?: return ResponseEntity.status(404).build()
-    val output = mutableMapOf<String, String>()
-    snippetPermissions.owned.forEach { output[it] = "owner" }
-    snippetPermissions.shared.forEach { output[it] = "shared" }
-    return ResponseEntity.ok().body(output)
-  }
-
-  /**
-   * PUT    /api/v1/snippets/{snippetId}
-   *
-   * Register a snippet into App's database. It also adds owner permission to the current user.
-   *
-   * This endpoint is meant to be used by Runner after creating a snippet, using the same JWT used for the creation request
-   */
-  @PutMapping("/snippets/{snippetId}")
-  @PreAuthorize("isAuthenticated()")
-  fun registerSnippet(
-    authentication: Authentication,
-    @PathVariable snippetId: String,
-    @RequestParam (required = true) language: String,
-  ): ResponseEntity<Any> {
-    val jwt = authentication.principal as Jwt
-    val userId = jwt.subject
-    accessManagerClient.postPermission(userId, snippetId, "owner")
-    snippetRepository.save(Snippet(snippetId, language, snippetId))
-    return ResponseEntity.ok().build()
-  }
-
-  /**
-   * DELETE /api/v1/snippets/{snippetId}
-   *
-   * Delete a snippet
-   */
-  @DeleteMapping("/snippets/{snippetId}")
-  @PreAuthorize("isAuthenticated()")
-  fun deleteSnippet(
-    authentication: Authentication,
-    @PathVariable snippetId: String,
-  ): ResponseEntity<Any> {
-    val jwt = authentication.principal as Jwt
-    val userId = jwt.subject
-    if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
-    accessManagerClient.deletePermissionForSnippet(snippetId)
-    runnerClient.deleteSnippet("snippets", snippetId)
-    snippetRepository.deleteById(snippetId)
-    testRepository.deleteBySnippetId(snippetId)
-    return ResponseEntity.ok().build()
-  }
-
-  /**
-   * PUT    /api/v1/snippets/{snippetId}/permission
-   *
-   * Share a snippet with another user
-   *
-   * Request:
-   *
-   *     {
-   *       userId: {userId}
-   *     }
-   */
-  @PutMapping("/snippets/{snippetId}/permission")
-  @PreAuthorize("isAuthenticated()")
-  fun shareSnippet(
-    authentication: Authentication,
-    @PathVariable snippetId: String,
-    @RequestBody snippetData: ShareSnippetRequest,
-  ): ResponseEntity<Any> {
-    val jwt = authentication.principal as Jwt
-    val ownerId = jwt.subject
-    if (!authorize(ownerId, snippetId)) return ResponseEntity.status(401).build()
-    accessManagerClient.postPermission(snippetData.userId, snippetId, "shared")
-    return ResponseEntity.ok().build()
-  }
-
-  /**
-   * DELETE /api/v1/snippets/{snippetId}/permission
-   *
-   * Remove permission for another user
-   */
-  @DeleteMapping("/snippets/{snippetId}/permission/{userId}")
-  @PreAuthorize("isAuthenticated()")
-  fun removeSnippetPermission(
-    authentication: Authentication,
-    @PathVariable snippetId: String,
-    @PathVariable userId: String,
-  ): ResponseEntity<Any> {
-    val jwt = authentication.principal as Jwt
-    val ownerId = jwt.subject
-    if (!authorize(ownerId, snippetId)) return ResponseEntity.status(401).build()
-    accessManagerClient.deletePermission(userId, snippetId)
-    return ResponseEntity.ok().build()
-  }
-
-  /**
-   * DELETE /api/v1/users
-   *
-   * Delete a user
-   */
-  @DeleteMapping("/users")
-  @PreAuthorize("isAuthenticated()")
-  fun deleteUser(authentication: Authentication): ResponseEntity<Any> {
-    val jwt = authentication.principal as Jwt
-    val userId = jwt.subject
-    val snippets = accessManagerClient.getPermissionsForUser(userId)
-    if (snippets != null) {
-      for (snippet in snippets.owned) {
-        testRepository.deleteBySnippetId(snippet)
-        snippetRepository.deleteBySnippetId(snippet)
-        accessManagerClient.deletePermissionForSnippet(snippet)
-      }
+    private fun authorize(
+        userId: String,
+        snippetId: String,
+    ): Boolean {
+        val permission = accessManagerClient.getPermission(userId, snippetId) ?: return false
+        return permission.role.lowercase() == "owner"
     }
-    accessManagerClient.deletePermissionForUser(userId)
-    runnerClient.deleteUser(userId)
-    return ResponseEntity.ok().build()
-  }
 
-  /**
-   * GET    /api/v1/snippets/{snippetId}/tests
-   *
-   * Get all tests for a snippet
-   *
-   * Response:
-   *
-   *     {
-   *       [testId]
-   *     }
-   */
-  @GetMapping("/snippets/{snippetId}/tests")
-  @PreAuthorize("isAuthenticated()")
-  fun getAllTests(
-    authentication: Authentication,
-    @PathVariable snippetId: String,
-  ): ResponseEntity<List<String>> {
-    val jwt = authentication.principal as Jwt
-    val userId = jwt.subject
-    if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
-    val tests = testRepository.findTestIdsBySnippetId(snippetId)
-    return ResponseEntity.ok(tests)
-  }
-
-  /**
-   * POST   /api/v1/snippets/{snippetId}/tests
-   *
-   * Create a test
-   *
-   * Request:
-   *
-   *     {
-   *       snippetId: {snippetId}
-   *       input: [String]
-   *       expected: {String}
-   *     }
-   * Response
-   *
-   *     {
-   *       testId: {testId}
-   *     }
-   */
-  @PostMapping("/snippets/{snippetId}/tests")
-  @PreAuthorize("isAuthenticated()")
-  fun createTest(
-    authentication: Authentication,
-    @PathVariable snippetId: String,
-    @RequestBody testData: CreateTestRequest,
-  ): ResponseEntity<CreateTestResponse> {
-    val jwt = authentication.principal as Jwt
-    val userId = jwt.subject
-    if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
-    val testId = UUID.randomUUID().toString()
-    val test =
-      Test(
-        testId,
-        snippetId,
-        testData.input,
-        testData.expected,
-      )
-    testRepository.save(test)
-    return ResponseEntity.ok(CreateTestResponse(testId))
-  }
-
-  /**
-   * PUT    /api/v1/snippets/{snippetId}/tests/{testId}
-   *
-   * Start execution of a test
-   */
-  @PutMapping("/snippets/{snippetId}/tests/{testId}")
-  @PreAuthorize("isAuthenticated()")
-  fun runTest(
-    authentication: Authentication,
-    @PathVariable snippetId: String,
-    @PathVariable testId: String,
-  ): ResponseEntity<Any> {
-    val jwt = authentication.principal as Jwt
-    val userId = jwt.subject
-    // TODO
-    return ResponseEntity.ok().body(userId)
-  }
-
-  /**
-   * DELETE /api/v1/snippets/{snippetId}/tests/{testId}
-   *
-   * Delete a test
-   */
-  @DeleteMapping("/snippets/{snippetId}/tests/{testId}")
-  @PreAuthorize("isAuthenticated()")
-  fun removeTest(
-    authentication: Authentication,
-    @PathVariable snippetId: String,
-    @PathVariable testId: String,
-  ): ResponseEntity<Any> {
-    val jwt = authentication.principal as Jwt
-    val userId = jwt.subject
-    if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
-    testRepository.deleteById(testId)
-    return ResponseEntity.ok().build()
-  }
-
-  /**
-   * POST   /api/v1/snippets/{snippetId}/run?version={version}
-   *
-   * Start execution of a snippet or provide input
-   *
-   * "Version" is not required
-   *
-   * Request:
-   *
-   * {
-   *   input: {String?}
-   * }
-   *
-   * Response:
-   *
-   * {
-   *   status: COMPLETED/OUTPUT/WAITING/ERROR,
-   *   message: String
-   * }
-   */
-  @PostMapping("/snippets/{snippetId}/run")
-  @PreAuthorize("isAuthenticated()")
-  fun runSnippet(
-    authentication: Authentication,
-    @PathVariable snippetId: String,
-    @RequestParam (required = false) version: String?,
-    @RequestBody request: SnippetRunRequest?,
-  ): ResponseEntity<ExecutionEvent> {
-    val jwt = authentication.principal as Jwt
-    val userId = jwt.subject
-    if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
-    val snippet = snippetRepository.findById(snippetId)
-    if (snippet.isEmpty) {
-      return ResponseEntity.notFound().build()
+    /**
+     * GET /api/v1/snippets
+     *
+     * Get all snippets available for a user
+     *
+     * Response:
+     *
+     *     {
+     *         [snippetId]
+     *     }
+     *     */
+    @GetMapping("/snippets")
+    @PreAuthorize("isAuthenticated()")
+    fun getAllSnippets(authentication: Authentication): ResponseEntity<Map<String, String>> {
+        val jwt = authentication.principal as Jwt
+        val userId = jwt.subject
+        val snippetPermissions: GetPermissionsForUserResponse =
+            accessManagerClient.getPermissionsForUser(userId) ?: return ResponseEntity.status(404).build()
+        val output = mutableMapOf<String, String>()
+        snippetPermissions.owned.forEach { output[it] = "owner" }
+        snippetPermissions.shared.forEach { output[it] = "shared" }
+        return ResponseEntity.ok().body(output)
     }
-    val output = runnerClient.runSnippet(snippetId, version)
 
-    return ResponseEntity.ok().body(output)
-  }
+    /**
+     * PUT    /api/v1/snippets/{snippetId}
+     *
+     * Register a snippet into App's database. It also adds owner permission to the current user.
+     *
+     * This endpoint is meant to be used by Runner after creating a snippet, using the same JWT used for the creation request
+     */
+    @PutMapping("/snippets/{snippetId}")
+    @PreAuthorize("isAuthenticated()")
+    fun registerSnippet(
+        authentication: Authentication,
+        @PathVariable snippetId: String,
+        @RequestParam(required = true) language: String,
+    ): ResponseEntity<Any> {
+        val jwt = authentication.principal as Jwt
+        val userId = jwt.subject
+        accessManagerClient.postPermission(userId, snippetId, "owner")
+        snippetRepository.save(Snippet(snippetId, language, snippetId))
+        return ResponseEntity.ok().build()
+    }
 
-  /**
-   * DELETE /api/v1/snippets/{snippetId}/run
-   *
-   * Cancel execution of a snippet
-   */
-  @DeleteMapping("/snippets/{snippetId}/run")
-  @PreAuthorize("isAuthenticated()")
-  fun cancelSnippetExecution(
-    authentication: Authentication,
-    @PathVariable snippetId: String,
-  ): ResponseEntity<Any> {
-    val jwt = authentication.principal as Jwt
-    val userId = jwt.subject
-    if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
-    // TODO
-    return ResponseEntity.ok().build()
-  }
+    /**
+     * DELETE /api/v1/snippets/{snippetId}
+     *
+     * Delete a snippet
+     */
+    @DeleteMapping("/snippets/{snippetId}")
+    @PreAuthorize("isAuthenticated()")
+    fun deleteSnippet(
+        authentication: Authentication,
+        @PathVariable snippetId: String,
+    ): ResponseEntity<Any> {
+        val jwt = authentication.principal as Jwt
+        val userId = jwt.subject
+        if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
+        accessManagerClient.deletePermissionForSnippet(snippetId)
+        runnerClient.deleteSnippet("snippets", snippetId)
+        snippetRepository.deleteById(snippetId)
+        testRepository.deleteBySnippetId(snippetId)
+        return ResponseEntity.ok().build()
+    }
 
-  /**
-   * PUT    /api/v1/rules
-   *
-   * Modify task rules
-   *
-   * Request:
-   *
-   *     {
-   *         task: {formatting/linting}
-   *         language: {language}
-   *         rules: {
-   *             rule1: {var1}
-   *             rule2: {val2}
-   *             ...
-   *         }
-   *     }
-   */
-  @PutMapping("/rules")
-  @PreAuthorize("isAuthenticated()")
-  fun updateRules(
-    authentication: Authentication,
-    @RequestBody request: SnippetUpdateRequest,
-  ): ResponseEntity<Any> {
-    val jwt = authentication.principal as Jwt
-    val userId = jwt.subject
+    /**
+     * PUT    /api/v1/snippets/{snippetId}/permission
+     *
+     * Share a snippet with another user
+     *
+     * Request:
+     *
+     *     {
+     *       userId: {userId}
+     *     }
+     */
+    @PutMapping("/snippets/{snippetId}/permission")
+    @PreAuthorize("isAuthenticated()")
+    fun shareSnippet(
+        authentication: Authentication,
+        @PathVariable snippetId: String,
+        @RequestBody snippetData: ShareSnippetRequest,
+    ): ResponseEntity<Any> {
+        val jwt = authentication.principal as Jwt
+        val ownerId = jwt.subject
+        if (!authorize(ownerId, snippetId)) return ResponseEntity.status(401).build()
+        accessManagerClient.postPermission(snippetData.userId, snippetId, "shared")
+        return ResponseEntity.ok().build()
+    }
 
-    val userSnippets = accessManagerClient.getPermissionsForUser(userId) ?: return ResponseEntity.status(404).build()
-    runnerClient.patchRules(userId, request.task, request.language, request.rules)
-    snippetTaskProducer.publish(userId, userSnippets.owned, request.language, request.task)
-    return ResponseEntity.ok().build()
-  }
+    /**
+     * DELETE /api/v1/snippets/{snippetId}/permission
+     *
+     * Remove permission for another user
+     */
+    @DeleteMapping("/snippets/{snippetId}/permission/{userId}")
+    @PreAuthorize("isAuthenticated()")
+    fun removeSnippetPermission(
+        authentication: Authentication,
+        @PathVariable snippetId: String,
+        @PathVariable userId: String,
+    ): ResponseEntity<Any> {
+        val jwt = authentication.principal as Jwt
+        val ownerId = jwt.subject
+        if (!authorize(ownerId, snippetId)) return ResponseEntity.status(401).build()
+        accessManagerClient.deletePermission(userId, snippetId)
+        return ResponseEntity.ok().build()
+    }
 
-  /**
-   * GET    /api/v1/rules?task={task}&language={language}
-   *
-   * Get all rules for a user
-   *
-   * Response:
-   *
-   *     {
-   *         rule1: {val1}
-   *         rule2: {val2}
-   *         ...
-   *     }
-   */
-  @GetMapping("/rules")
-  @PreAuthorize("isAuthenticated()")
-  fun getRules(
-    authentication: Authentication,
-    @RequestParam task: String,
-    @RequestParam language: String,
-  ): ResponseEntity<Map<String, Any>> {
-    val jwt = authentication.principal as Jwt
-    val userId = jwt.subject
-    runnerClient.getRules(userId, task, language)
-    return ResponseEntity.ok().build()
-  }
+    /**
+     * DELETE /api/v1/users
+     *
+     * Delete a user
+     */
+    @DeleteMapping("/users")
+    @PreAuthorize("isAuthenticated()")
+    fun deleteUser(authentication: Authentication): ResponseEntity<Any> {
+        val jwt = authentication.principal as Jwt
+        val userId = jwt.subject
+        val snippets = accessManagerClient.getPermissionsForUser(userId)
+        if (snippets != null) {
+            for (snippet in snippets.owned) {
+                testRepository.deleteBySnippetId(snippet)
+                snippetRepository.deleteBySnippetId(snippet)
+                accessManagerClient.deletePermissionForSnippet(snippet)
+            }
+        }
+        accessManagerClient.deletePermissionForUser(userId)
+        runnerClient.deleteUser(userId)
+        return ResponseEntity.ok().build()
+    }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * GET    /api/v1/snippets/{snippetId}/tests
+     *
+     * Get all tests for a snippet
+     *
+     * Response:
+     *
+     *     {
+     *       [testId]
+     *     }
+     */
+    @GetMapping("/snippets/{snippetId}/tests")
+    @PreAuthorize("isAuthenticated()")
+    fun getAllTests(
+        authentication: Authentication,
+        @PathVariable snippetId: String,
+    ): ResponseEntity<List<String>> {
+        val jwt = authentication.principal as Jwt
+        val userId = jwt.subject
+        if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
+        val tests = testRepository.findTestIdsBySnippetId(snippetId)
+        return ResponseEntity.ok(tests)
+    }
 
-  @PostMapping("/testing/separator")
-  fun printSeparator() {
-    println(
-      "###############################################################\n" +
-          "# SEPARATOR SEPARATOR SEPARATOR SEPARATOR SEPARATOR SEPARATOR #\n" +
-          "###############################################################",
-    )
-  }
+    /**
+     * POST   /api/v1/snippets/{snippetId}/tests
+     *
+     * Create a test
+     *
+     * Request:
+     *
+     *     {
+     *       snippetId: {snippetId}
+     *       input: [String]
+     *       expected: {String}
+     *     }
+     * Response
+     *
+     *     {
+     *       testId: {testId}
+     *     }
+     */
+    @PostMapping("/snippets/{snippetId}/tests")
+    @PreAuthorize("isAuthenticated()")
+    fun createTest(
+        authentication: Authentication,
+        @PathVariable snippetId: String,
+        @RequestBody testData: CreateTestRequest,
+    ): ResponseEntity<CreateTestResponse> {
+        val jwt = authentication.principal as Jwt
+        val userId = jwt.subject
+        if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
+        val testId = UUID.randomUUID().toString()
+        val test =
+            Test(
+                testId,
+                snippetId,
+                testData.input,
+                testData.expected,
+            )
+        testRepository.save(test)
+        return ResponseEntity.ok(CreateTestResponse(testId))
+    }
 
-  @PostMapping("/testing")
-  fun sendTestingMessage() {
-    val payload: Map<String, String> =
-      mapOf(
-        "task" to "test",
-        "userId" to "userId",
-        "snippetId" to "it",
-        "language" to "language",
-      )
+    /**
+     * PUT    /api/v1/snippets/{snippetId}/tests/{testId}
+     *
+     * Start execution of a test
+     */
+    @PutMapping("/snippets/{snippetId}/tests/{testId}")
+    @PreAuthorize("isAuthenticated()")
+    fun runTest(
+        authentication: Authentication,
+        @PathVariable snippetId: String,
+        @PathVariable testId: String,
+    ): ResponseEntity<Any> {
+        val jwt = authentication.principal as Jwt
+        val userId = jwt.subject
+        // TODO
+        return ResponseEntity.ok().body(userId)
+    }
 
-    redisTemplate.opsForStream<String, String>().add(streamKey, payload)
-  }
+    /**
+     * DELETE /api/v1/snippets/{snippetId}/tests/{testId}
+     *
+     * Delete a test
+     */
+    @DeleteMapping("/snippets/{snippetId}/tests/{testId}")
+    @PreAuthorize("isAuthenticated()")
+    fun removeTest(
+        authentication: Authentication,
+        @PathVariable snippetId: String,
+        @PathVariable testId: String,
+    ): ResponseEntity<Any> {
+        val jwt = authentication.principal as Jwt
+        val userId = jwt.subject
+        if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
+        testRepository.deleteById(testId)
+        return ResponseEntity.ok().build()
+    }
+
+    /**
+     * POST   /api/v1/snippets/{snippetId}/run?version={version}
+     *
+     * Start execution of a snippet or provide input
+     *
+     * "Version" is not required
+     *
+     * Request:
+     *
+     * {
+     *   input: {String?}
+     * }
+     *
+     * Response:
+     *
+     * {
+     *   status: COMPLETED/OUTPUT/WAITING/ERROR,
+     *   message: String
+     * }
+     */
+    @PostMapping("/snippets/{snippetId}/run")
+    @PreAuthorize("isAuthenticated()")
+    fun runSnippet(
+        authentication: Authentication,
+        @PathVariable snippetId: String,
+        @RequestParam(required = false) version: String?,
+        @RequestBody request: SnippetRunRequest?,
+    ): ResponseEntity<ExecutionEvent> {
+        val jwt = authentication.principal as Jwt
+        val userId = jwt.subject
+        if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
+        val snippet = snippetRepository.findById(snippetId)
+        if (snippet.isEmpty) {
+            return ResponseEntity.notFound().build()
+        }
+        val output = runnerClient.runSnippet(snippetId, version)
+
+        return ResponseEntity.ok().body(output)
+    }
+
+    /**
+     * DELETE /api/v1/snippets/{snippetId}/run
+     *
+     * Cancel execution of a snippet
+     */
+    @DeleteMapping("/snippets/{snippetId}/run")
+    @PreAuthorize("isAuthenticated()")
+    fun cancelSnippetExecution(
+        authentication: Authentication,
+        @PathVariable snippetId: String,
+    ): ResponseEntity<Any> {
+        val jwt = authentication.principal as Jwt
+        val userId = jwt.subject
+        if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
+        // TODO
+        return ResponseEntity.ok().build()
+    }
+
+    /**
+     * PUT    /api/v1/rules
+     *
+     * Modify task rules
+     *
+     * Request:
+     *
+     *     {
+     *         task: {formatting/linting}
+     *         language: {language}
+     *         rules: {
+     *             rule1: {var1}
+     *             rule2: {val2}
+     *             ...
+     *         }
+     *     }
+     */
+    @PutMapping("/rules")
+    @PreAuthorize("isAuthenticated()")
+    fun updateRules(
+        authentication: Authentication,
+        @RequestBody request: SnippetUpdateRequest,
+    ): ResponseEntity<Any> {
+        val jwt = authentication.principal as Jwt
+        val userId = jwt.subject
+
+        val userSnippets = accessManagerClient.getPermissionsForUser(userId) ?: return ResponseEntity.status(404).build()
+        runnerClient.patchRules(userId, request.task, request.language, request.rules)
+        snippetTaskProducer.publish(userId, userSnippets.owned, request.language, request.task)
+        return ResponseEntity.ok().build()
+    }
+
+    /**
+     * GET    /api/v1/rules?task={task}&language={language}
+     *
+     * Get all rules for a user
+     *
+     * Response:
+     *
+     *     {
+     *         rule1: {val1}
+     *         rule2: {val2}
+     *         ...
+     *     }
+     */
+    @GetMapping("/rules")
+    @PreAuthorize("isAuthenticated()")
+    fun getRules(
+        authentication: Authentication,
+        @RequestParam task: String,
+        @RequestParam language: String,
+    ): ResponseEntity<Map<String, Any>> {
+        val jwt = authentication.principal as Jwt
+        val userId = jwt.subject
+        runnerClient.getRules(userId, task, language)
+        return ResponseEntity.ok().build()
+    }
+
+// /////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    @PostMapping("/testing/separator")
+    fun printSeparator() {
+        println(
+            "###############################################################\n" +
+                "# SEPARATOR SEPARATOR SEPARATOR SEPARATOR SEPARATOR SEPARATOR #\n" +
+                "###############################################################",
+        )
+    }
+
+    @PostMapping("/testing")
+    fun sendTestingMessage() {
+        val payload: Map<String, String> =
+            mapOf(
+                "task" to "test",
+                "userId" to "userId",
+                "snippetId" to "it",
+                "language" to "language",
+            )
+
+        redisTemplate.opsForStream<String, String>().add(streamKey, payload)
+    }
 }

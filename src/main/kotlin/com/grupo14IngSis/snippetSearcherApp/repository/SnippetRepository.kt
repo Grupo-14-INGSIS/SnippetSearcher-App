@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional
 
 @Repository
 interface SnippetRepository : JpaRepository<Snippet, String> {
-
     @Transactional
     fun deleteBySnippetId(snippetId: String)
 

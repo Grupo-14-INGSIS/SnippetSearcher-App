@@ -1,7 +1,6 @@
 package com.grupo14IngSis.snippetSearcherApp.client
 
 import com.grupo14IngSis.snippetSearcherApp.dto.ExecutionEvent
-import com.grupo14IngSis.snippetSearcherApp.dto.ExecutionEventType
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
@@ -14,10 +13,14 @@ class RunnerClient(
     private val restTemplate: RestTemplate,
     @Value("\${runner.service.url}/api/v1") private val runnerUrl: String,
 ) {
-
-    fun runSnippet(snippetId: String, version: String?): ExecutionEvent {
+    fun runSnippet(
+        snippetId: String,
+        version: String?,
+    ): ExecutionEvent {
         var url = "$runnerUrl/snippets/$snippetId/execution"
-        if (version != null) { url = "$url?version=$version" }
+        if (version != null) {
+            url = "$url?version=$version"
+        }
         val headers = HttpHeaders()
         val requestEntity = HttpEntity<Void>(headers)
         val response =
@@ -25,7 +28,7 @@ class RunnerClient(
                 url,
                 HttpMethod.POST,
                 requestEntity,
-                ExecutionEvent::class.java
+                ExecutionEvent::class.java,
             )
         return response.body!!
     }
