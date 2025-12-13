@@ -2,6 +2,7 @@ package com.grupo14IngSis.snippetSearcherApp.config
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
@@ -18,6 +19,7 @@ class SecurityConfig {
                 authorize
                     .requestMatchers("/api/v1/testing").permitAll()
                     .requestMatchers("/api/v1/testing/separator").permitAll()
+                    .requestMatchers(HttpMethod.PUT, "/api/v1/snippets/*").permitAll()
                     .requestMatchers("/api/v1/**").authenticated()
                     .anyRequest().permitAll()
             }

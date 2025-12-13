@@ -50,18 +50,15 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
-/*
 tasks.named('test') {
     useJUnitPlatform()
     finalizedBy jacocoTestReport
 }
- */
 
 jacoco {
     toolVersion = "0.8.11"
 }
 
-/*
 jacocoTestReport {
     dependsOn test
     reports {
@@ -79,7 +76,6 @@ jacocoTestCoverageVerification {
         }
     }
 }
- */
 
 kotlin {
     compilerOptions {
