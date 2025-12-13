@@ -90,7 +90,7 @@ class SnippetController(
     }
 
     /**
-     * PUT    /api/v1/snippets/{snippetId}?language={language}
+     * PUT    /api/v1/snippets/{snippetId}?userId={userId}&language={language}
      *
      * Register a snippet into App's database. It also adds owner permission to the current user.
      *
@@ -106,14 +106,11 @@ class SnippetController(
      *     }
      */
     @PutMapping("/snippets/{snippetId}")
-    @PreAuthorize("isAuthenticated()")
     fun registerSnippet(
-        authentication: Authentication,
         @PathVariable snippetId: String,
         @RequestParam(required = true) language: String,
+        @RequestParam(required = true) userId: String,
     ): ResponseEntity<SnippetCreationResponse> {
-        val jwt = authentication.principal as Jwt
-        val userId = jwt.subject
         try {
             snippetRepository.save(Snippet(snippetId, language, snippetId))
         } catch (e: DataIntegrityViolationException) {

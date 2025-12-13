@@ -27,7 +27,7 @@ Endpoints:
 
 SnippetController
     GET    /api/v1/snippets
-    PUT    /api/v1/snippets/{snippetId}?language={language}
+    PUT    /api/v1/snippets/{snippetId}?userId={userId}&language={language}
     DELETE /api/v1/snippets/{snippetId}
     PUT    /api/v1/snippets/{snippetId}/permission
     DELETE /api/v1/snippets/{snippetId}/permission
@@ -60,7 +60,7 @@ GET    /api/v1/snippets
         }
     If the user is not found, returns 404
 
-PUT    /api/v1/snippets/{snippetId}?language={language}
+PUT    /api/v1/snippets/{snippetId}?userId={userId}&language={language}
     Register a snippet into App's database. It also adds owner permission to the current user.
     This endpoint is meant to be used by Runner after creating a snippet, using the same JWT used for the creation request
     No request body is required as the userId is taken from the JWT and the language is a PathVariable
