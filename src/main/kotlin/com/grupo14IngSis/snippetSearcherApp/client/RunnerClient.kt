@@ -1,8 +1,13 @@
 package com.grupo14IngSis.snippetSearcherApp.client
 
+import com.grupo14IngSis.snippetSearcherApp.dto.ExecutionEventType
 import com.grupo14IngSis.snippetSearcherApp.dto.InputSendRequest
-import com.grupo14IngSis.snippetSearcherApp.dto.SnippetRunRequest
+import com.grupo14IngSis.snippetSearcherApp.dto.RunTestResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.StartExecutionResponse
+import com.grupo14IngSis.snippetSearcherApp.dto.TestResult
+import com.grupo14IngSis.snippetSearcherApp.dto.runnerclient.RunTestRequest
+import com.grupo14IngSis.snippetSearcherApp.dto.runnerclient.SnippetExecutionRunerCancel
+import com.grupo14IngSis.snippetSearcherApp.dto.runnerclient.SnippetExecutionRunnerRequest
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
@@ -15,13 +20,13 @@ class RunnerClient(
     private val restTemplate: RestTemplate,
     @Value("\${runner.service.url}/api/v1") private val runnerUrl: String,
 ) {
-
     // ##### UTILS #####
 
     fun toStringAnyMap(input: Map<*, *>): Map<String, Any> {
-        val pairs = input.entries.associate { (k, v) ->
-            k.toString() to v
-        }
+        val pairs =
+            input.entries.associate { (k, v) ->
+                k.toString() to v
+            }
         val output = mutableMapOf<String, Any>()
         for (key in pairs.keys) {
             if (pairs[key] != null) {
@@ -41,10 +46,9 @@ class RunnerClient(
     ): StartExecutionResponse {
         val url = "$runnerUrl/snippets/$snippetId/run"
         val headers = HttpHeaders()
-        /*
         val requestEntity =
-            HttpEntity<SnippetRunRequest>(
-                SnippetRunRequest(snippetId, userId, version, environment),
+            HttpEntity<SnippetExecutionRunnerRequest>(
+                SnippetExecutionRunnerRequest(userId, version, environment),
                 headers,
             )
         val response =
@@ -53,10 +57,8 @@ class RunnerClient(
                 HttpMethod.POST,
                 requestEntity,
                 StartExecutionResponse::class.java,
-            )
-        return response.body!!
-        */
-        return StartExecutionResponse("")
+            ).body ?: StartExecutionResponse(ExecutionEventType.ERROR, "Could not fetch response")
+        return StartExecutionResponse(response.status, response.message)
     }
 
     fun sendInput(
@@ -77,6 +79,61 @@ class RunnerClient(
             requestEntity,
             Void::class.java,
         )
+    }
+
+    fun cancelExecution(
+        snippetId: String,
+        userId: String,
+    ) {
+        val url = "$runnerUrl/snippets/$snippetId/run/"
+        val requestEntity =
+            HttpEntity<SnippetExecutionRunerCancel>(
+                SnippetExecutionRunerCancel(userId),
+                HttpHeaders(),
+            )
+        restTemplate.exchange(
+            url,
+            HttpMethod.DELETE,
+            requestEntity,
+            Void::class.java,
+        )
+    }
+
+// ##### TESTS #####
+
+    fun runTest(
+        snippetId: String,
+        testId: String,
+        version: String,
+        environment: Map<String, String>,
+        input: List<String>,
+        expected: List<String>,
+    ): RunTestResponse {
+        val url = "$runnerUrl/testing"
+        val requestEntity =
+            HttpEntity<RunTestRequest>(
+                RunTestRequest(
+                    snippetId,
+                    testId,
+                    version,
+                    environment,
+                    input,
+                    expected,
+                ),
+                HttpHeaders(),
+            )
+        val response =
+            restTemplate.exchange(
+                url,
+                HttpMethod.DELETE,
+                requestEntity,
+                RunTestResponse::class.java,
+            ).body ?: RunTestResponse(
+                emptyList(),
+                TestResult.ERROR,
+                "Error while receiving test",
+            )
+        return response
     }
 
 // ##### RULES #####
@@ -142,6 +199,8 @@ class RunnerClient(
             Void::class.java,
         )
     }
+
+// ##### SNIPPETS #####
 
     fun deleteSnippet(
         container: String,

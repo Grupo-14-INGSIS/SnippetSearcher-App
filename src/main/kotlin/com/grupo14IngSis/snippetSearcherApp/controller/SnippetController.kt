@@ -1,4 +1,5 @@
 package com.grupo14IngSis.snippetSearcherApp.controller
+
 import com.grupo14IngSis.snippetSearcherApp.client.AccessManagerClient
 import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
 import com.grupo14IngSis.snippetSearcherApp.domain.Snippet
@@ -8,6 +9,7 @@ import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.ExecutionEvent
 import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForUserResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.InputSendRequest
+import com.grupo14IngSis.snippetSearcherApp.dto.RunTestResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.ShareSnippetRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetRunRequest
@@ -45,12 +47,20 @@ class SnippetController(
     private val redisTemplate: RedisTemplate<String, String>,
     @Value("\${redis.stream.key}") private val streamKey: String,
 ) {
-    private fun authorize(
+    private val ownerPermission = 2
+    private val sharedPermission = 1
+    private val noPermission = 0
+
+    private fun getAuthorization(
         userId: String,
         snippetId: String,
-    ): Boolean {
-        val permission = accessManagerClient.getPermission(userId, snippetId) ?: return false
-        return permission.role.lowercase() == "owner"
+    ): Int {
+        val permission = accessManagerClient.getPermission(userId, snippetId) ?: return noPermission
+        return when {
+            permission.role.lowercase() == "owner" -> ownerPermission
+            permission.role.uppercase() == "shared" -> sharedPermission
+            else -> noPermission
+        }
     }
 
     /**
@@ -143,7 +153,9 @@ class SnippetController(
     ): ResponseEntity<Any> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
-        if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
+        if (getAuthorization(userId, snippetId) < ownerPermission) {
+            return ResponseEntity.status(401).build()
+        }
         accessManagerClient.deletePermissionForSnippet(snippetId)
         runnerClient.deleteSnippet("snippets", snippetId)
         snippetRepository.deleteById(snippetId)
@@ -171,7 +183,9 @@ class SnippetController(
     ): ResponseEntity<Any> {
         val jwt = authentication.principal as Jwt
         val ownerId = jwt.subject
-        if (!authorize(ownerId, snippetId)) return ResponseEntity.status(401).build()
+        if (getAuthorization(ownerId, snippetId) < ownerPermission) {
+            return ResponseEntity.status(401).build()
+        }
         accessManagerClient.postPermission(snippetData.userId, snippetId, "shared")
         return ResponseEntity.ok().build()
     }
@@ -190,7 +204,9 @@ class SnippetController(
     ): ResponseEntity<Any> {
         val jwt = authentication.principal as Jwt
         val ownerId = jwt.subject
-        if (!authorize(ownerId, snippetId)) return ResponseEntity.status(401).build()
+        if (getAuthorization(ownerId, snippetId) < ownerPermission) {
+            return ResponseEntity.status(401).build()
+        }
         accessManagerClient.deletePermission(userId, snippetId)
         return ResponseEntity.ok().build()
     }
@@ -237,7 +253,9 @@ class SnippetController(
     ): ResponseEntity<List<String>> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
-        if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
+        if (getAuthorization(userId, snippetId) < sharedPermission) {
+            return ResponseEntity.status(401).build()
+        }
         val tests = testRepository.findTestIdsBySnippetId(snippetId)
         return ResponseEntity.ok(tests)
     }
@@ -270,7 +288,9 @@ class SnippetController(
     ): ResponseEntity<CreateTestResponse> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
-        if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
+        if (getAuthorization(userId, snippetId) < ownerPermission) {
+            return ResponseEntity.status(401).build()
+        }
         val testId = UUID.randomUUID().toString()
         val test =
             Test(
@@ -278,6 +298,8 @@ class SnippetController(
                 snippetId,
                 testData.input,
                 testData.expected,
+                testData.version,
+                testData.environment,
             )
         testRepository.save(test)
         return ResponseEntity.ok(CreateTestResponse(testId))
@@ -287,6 +309,14 @@ class SnippetController(
      * PUT    /api/v1/snippets/{snippetId}/tests/{testId}
      *
      * Start execution of a test
+     *
+     * Response:
+     *
+     *     {
+     *       actual: List<String>,
+     *       result: TestResult (String enum),
+     *       message: String
+     *     }
      */
     @PutMapping("/snippets/{snippetId}/tests/{testId}")
     @PreAuthorize("isAuthenticated()")
@@ -294,11 +324,23 @@ class SnippetController(
         authentication: Authentication,
         @PathVariable snippetId: String,
         @PathVariable testId: String,
-    ): ResponseEntity<Any> {
+    ): ResponseEntity<RunTestResponse> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
-        // TODO
-        return ResponseEntity.ok().body(userId)
+        if (getAuthorization(userId, snippetId) < sharedPermission) {
+            return ResponseEntity.status(401).build()
+        }
+        val test = testRepository.findById(testId).get()
+        val result =
+            runnerClient.runTest(
+                snippetId,
+                testId,
+                test.version,
+                test.environment,
+                test.input,
+                test.output,
+            )
+        return ResponseEntity.ok().body(result)
     }
 
     /**
@@ -315,7 +357,9 @@ class SnippetController(
     ): ResponseEntity<Any> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
-        if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
+        if (getAuthorization(userId, snippetId) < ownerPermission) {
+            return ResponseEntity.status(401).build()
+        }
         testRepository.deleteById(testId)
         return ResponseEntity.ok().build()
     }
@@ -335,7 +379,8 @@ class SnippetController(
      * Response:
      *
      *     {
-     *       executionId: {executionId}
+     *       status: String (COMPLETED/OUTPUT/WAITING/ERROR),
+     *       message: String
      *     }
      */
     @PostMapping("/snippets/{snippetId}/execution")
@@ -347,7 +392,9 @@ class SnippetController(
     ): ResponseEntity<StartExecutionResponse> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
-        if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
+        if (getAuthorization(userId, snippetId) < sharedPermission) {
+            return ResponseEntity.status(401).build()
+        }
         val snippet = snippetRepository.findById(snippetId)
         if (snippet.isEmpty) {
             return ResponseEntity.notFound().build()
@@ -377,7 +424,9 @@ class SnippetController(
     ): ResponseEntity<Any> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
-        if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
+        if (getAuthorization(userId, snippetId) < sharedPermission) {
+            return ResponseEntity.status(401).build()
+        }
         val snippet = snippetRepository.findById(snippetId)
         if (snippet.isEmpty) {
             return ResponseEntity.notFound().build()
@@ -403,8 +452,9 @@ class SnippetController(
     fun receiveOutput(
         @PathVariable snippetId: String,
         @RequestBody request: ExecutionEvent,
-    ) {
+    ): ResponseEntity<String> {
         // TODO
+        return ResponseEntity.noContent().build()
     }
 
     /**
@@ -420,8 +470,10 @@ class SnippetController(
     ): ResponseEntity<Any> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
-        if (!authorize(userId, snippetId)) return ResponseEntity.status(401).build()
-        // TODO
+        if (getAuthorization(userId, snippetId) < sharedPermission) {
+            return ResponseEntity.status(401).build()
+        }
+        runnerClient.cancelExecution(snippetId, userId)
         return ResponseEntity.ok().build()
     }
 
