@@ -39,7 +39,7 @@ dependencies {
     implementation 'io.lettuce:lettuce-core'
     implementation 'io.hypersistence:hypersistence-utils-hibernate-63:3.7.0'
 
-    runtimeOnly 'org.postgresql:postgresql'
+    runtimeOnly 'org.postgresql:postgresql:42.7.1'
 
     testImplementation "org.junit.jupiter:junit-jupiter:5.9.3"
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
