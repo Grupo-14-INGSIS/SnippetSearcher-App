@@ -479,31 +479,28 @@ class SnippetController(
         return ResponseEntity.ok().build()
     }
 
-    /**
-     * GET    /api/v1/rules?task={task}&language={language}
-     *
-     * Get all rules for a user
-     *
-     * Response:
-     *
-     *     {
-     *         rule1: {val1}
-     *         rule2: {val2}
-     *         ...
-     *     }
-     */
+import org.springframework.web.client.HttpClientErrorException
+
+//...
     @GetMapping("/rules")
     @PreAuthorize("isAuthenticated()")
     fun getRules(
         authentication: Authentication,
         @RequestParam task: String,
         @RequestParam language: String,
-    ): ResponseEntity<Map<String, Any>> {
+    ): ResponseEntity<Map<String, Any>?> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
-        val rules = runnerClient.getRules(userId, task, language)
-        return ResponseEntity.ok().body(rules)
+        try {
+            val rules = runnerClient.getRules(userId, task, language)
+            return ResponseEntity.ok().body(rules)
+        } catch (e: HttpClientErrorException.NotFound) {
+            runnerClient.registerUser(userId)
+            val rules = runnerClient.getRules(userId, task, language)
+            return ResponseEntity.ok().body(rules)
+        }
     }
+//...
 
 // //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
