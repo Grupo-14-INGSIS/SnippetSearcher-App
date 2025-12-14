@@ -362,7 +362,7 @@ class SnippetController(
     }
 
     /**
-     * POST   /api/v1/snippets/{snippetId}/execution/run
+     * POST   /api/v1/snippets/{snippetId}/execution
      *
      * Start execution of a snippet
      *
@@ -412,7 +412,7 @@ class SnippetController(
      *       input: String
      *     }
      */
-    @PostMapping("/snippets/{snippetId}/execution/output")
+    @PostMapping("/snippets/{snippetId}/execution/input")
     @PreAuthorize("isAuthenticated()")
     fun sendInput(
         authentication: Authentication,
@@ -433,9 +433,9 @@ class SnippetController(
     }
 
     /**
-     * POST   /api/v1/snippets/{snippetId}/execution
+     * POST   /api/v1/snippets/{snippetId}/execution/callback
      *
-     * Receive output of a snippet
+     * Receive output of a snippet (webhook from Runner)
      *
      * Request:
      *
@@ -445,12 +445,12 @@ class SnippetController(
      *         message: String
      *     }
      */
-    @PostMapping("/snippets/{snippetId}/execution")
+    @PostMapping("/snippets/{snippetId}/execution/callback")
     fun receiveOutput(
         @PathVariable snippetId: String,
         @RequestBody request: ExecutionEvent,
     ): ResponseEntity<String> {
-        // TODO
+        // TODO: Implementar lógica para procesar el callback
         return ResponseEntity.noContent().build()
     }
 
