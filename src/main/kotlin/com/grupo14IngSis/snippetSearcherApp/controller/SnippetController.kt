@@ -412,7 +412,7 @@ class SnippetController(
      *       input: String
      *     }
      */
-    @PostMapping("/snippets/{snippetId}/execution/input")
+    @PostMapping("/snippets/{snippetId}/execution/output")
     @PreAuthorize("isAuthenticated()")
     fun sendInput(
         authentication: Authentication,
