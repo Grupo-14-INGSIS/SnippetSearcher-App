@@ -361,7 +361,7 @@ class SnippetController(
     }
 
     /**
-     * POST   /api/v1/snippets/{snippetId}/execution/run
+     * POST   /api/v1/snippets/{snippetId}/execution
      *
      * Start execution of a snippet
      *
