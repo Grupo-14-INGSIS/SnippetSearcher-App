@@ -57,7 +57,7 @@ class RunnerClient(
                 HttpMethod.POST,
                 requestEntity,
                 StartExecutionResponse::class.java,
-            ).body ?: StartExecutionResponse(ExecutionEventType.ERROR, "Could not fetch response")
+            ).body ?: StartExecutionResponse(ExecutionEventType.ERROR, listOf("Could not fetch response"))
         return StartExecutionResponse(response.status, response.message)
     }
 

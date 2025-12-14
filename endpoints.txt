@@ -123,7 +123,8 @@ POST   /api/v1/snippets/{snippetId}/execution/run
         }
     Response:
         {
-            executionId: {executionId}
+            status: String (COMPLETED/OUTPUT/WAITING/ERROR),
+            message: List<String>
         }
 
 POST   /api/v1/snippets/{snippetId/execution/input
@@ -132,17 +133,6 @@ POST   /api/v1/snippets/{snippetId/execution/input
         {
             input: String
         }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-POST   /api/v1/snippets/{snippetId}/execution
-    Receive output of a snippet
-    Request:
-        {
-            executionId: {executionId}
-            status: COMPLETED/OUTPUT/WAITING/ERROR,
-            message: String
-        }
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
 DELETE /api/v1/snippets/{snippetId}/execution
     Cancel execution of a snippet

@@ -6,7 +6,6 @@ import com.grupo14IngSis.snippetSearcherApp.domain.Snippet
 import com.grupo14IngSis.snippetSearcherApp.domain.Test
 import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestResponse
-import com.grupo14IngSis.snippetSearcherApp.dto.ExecutionEvent
 import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForUserResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.InputSendRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.RunTestResponse
@@ -377,7 +376,7 @@ class SnippetController(
      *
      *     {
      *       status: String (COMPLETED/OUTPUT/WAITING/ERROR),
-     *       message: String
+     *       message: List<String>
      *     }
      */
     @PostMapping("/snippets/{snippetId}/execution")
@@ -429,28 +428,6 @@ class SnippetController(
             return ResponseEntity.notFound().build()
         }
         runnerClient.sendInput(snippetId, userId, request.input)
-        return ResponseEntity.noContent().build()
-    }
-
-    /**
-     * POST   /api/v1/snippets/{snippetId}/execution
-     *
-     * Receive output of a snippet
-     *
-     * Request:
-     *
-     *     {
-     *         executionId: {executionId}
-     *         status: COMPLETED/OUTPUT/WAITING/ERROR,
-     *         message: String
-     *     }
-     */
-    @PostMapping("/snippets/{snippetId}/execution")
-    fun receiveOutput(
-        @PathVariable snippetId: String,
-        @RequestBody request: ExecutionEvent,
-    ): ResponseEntity<String> {
-        // TODO
         return ResponseEntity.noContent().build()
     }
 
