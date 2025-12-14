@@ -37,8 +37,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     implementation 'io.lettuce:lettuce-core'
+    implementation 'io.hypersistence:hypersistence-utils-hibernate-63:3.7.0'
 
-    implementation 'org.postgresql:postgresql:42.7.1'
+    runtimeOnly 'org.postgresql:postgresql:42.7.1'
 
     testImplementation "org.junit.jupiter:junit-jupiter:5.9.3"
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -50,18 +51,15 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
-/*
 tasks.named('test') {
     useJUnitPlatform()
     finalizedBy jacocoTestReport
 }
- */
 
 jacoco {
     toolVersion = "0.8.11"
 }
 
-/*
 jacocoTestReport {
     dependsOn test
     reports {
@@ -79,7 +77,6 @@ jacocoTestCoverageVerification {
         }
     }
 }
- */
 
 kotlin {
     compilerOptions {
