@@ -127,7 +127,7 @@ POST   /api/v1/snippets/{snippetId}/execution/run
             message: List<String>
         }
 
-POST   /api/v1/snippets/{snippetId/execution/input
+POST   /api/v1/snippets/{snippetId}/execution/input
     Send input to snippet execution
     Request:
         {
