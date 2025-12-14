@@ -23,7 +23,7 @@ class RequestIdFilter : OncePerRequestFilter() {
             request.getHeader("X-Request-ID")
                 ?: UUID.randomUUID().toString()
 
-        MDC.put("request_id", requestId)
+        MDC.put("requestId", requestId)
 
         response.setHeader("X-Request-ID", requestId)
 
