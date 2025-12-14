@@ -33,6 +33,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.client.HttpClientErrorException
 import java.util.UUID
 
 @RestController
@@ -479,9 +480,19 @@ class SnippetController(
         return ResponseEntity.ok().build()
     }
 
-import org.springframework.web.client.HttpClientErrorException
-
-//...
+    /**
+     * GET    /api/v1/rules?task={task}&language={language}
+     *
+     * Get all rules for a user
+     *
+     * Response:
+     *
+     *     {
+     *         rule1: {val1}
+     *         rule2: {val2}
+     *         ...
+     *     }
+     */
     @GetMapping("/rules")
     @PreAuthorize("isAuthenticated()")
     fun getRules(
@@ -493,14 +504,13 @@ import org.springframework.web.client.HttpClientErrorException
         val userId = jwt.subject
         try {
             val rules = runnerClient.getRules(userId, task, language)
-            return ResponseEntity.ok().body(rules)
+            return ResponseEntity.ok(rules)
         } catch (e: HttpClientErrorException.NotFound) {
             runnerClient.registerUser(userId)
             val rules = runnerClient.getRules(userId, task, language)
-            return ResponseEntity.ok().body(rules)
+            return ResponseEntity.ok(rules)
         }
     }
-//...
 
 // //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
