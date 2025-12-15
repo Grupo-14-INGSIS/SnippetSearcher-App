@@ -19,18 +19,15 @@ class RequestIdFilter : OncePerRequestFilter() {
         response: HttpServletResponse,
         filterChain: FilterChain,
     ) {
-        val requestId =
-            request.getHeader("X-Request-ID")
-                ?: UUID.randomUUID().toString()
+        val requestId = request.getHeader("X-Request-Id") ?: UUID.randomUUID().toString()
 
         MDC.put("requestId", requestId)
-
-        response.setHeader("X-Request-ID", requestId)
-
         NewRelic.addCustomParameter("request_id", requestId)
-        NewRelic.addCustomParameter("service", "SnippetSearcher")
+        response.setHeader("X-Request-Id", requestId)
 
-        logger.info("[SNIPPET-SEARCHER] Request $requestId - ${request.method} ${request.requestURI}")
+        val method = request.method
+        val uri = request.requestURI
+        logger.info("[SNIPPET-SEARCHER] Request $requestId - $method $uri")
 
         try {
             filterChain.doFilter(request, response)
