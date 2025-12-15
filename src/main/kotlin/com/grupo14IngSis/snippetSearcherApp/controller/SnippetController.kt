@@ -533,6 +533,20 @@ class SnippetController(
     }
 
     // ...
+
+    /**
+     * GET    /api/v1/rules?task={task}&language={language}
+     *
+     * Get all rules for a user
+     *
+     * Response:
+     *
+     *     {
+     *         rule1: {val1}
+     *         rule2: {val2}
+     *         ...
+     *     }
+     */
     @GetMapping("/rules")
     @PreAuthorize("isAuthenticated()")
     fun getRules(
@@ -544,11 +558,11 @@ class SnippetController(
         val userId = jwt.subject
         try {
             val rules = runnerClient.getRules(userId, task, language)
-            return ResponseEntity.ok().body(rules)
+            return ResponseEntity.ok(rules)
         } catch (e: HttpClientErrorException.NotFound) {
             runnerClient.registerUser(userId)
             val rules = runnerClient.getRules(userId, task, language)
-            return ResponseEntity.ok().body(rules)
+            return ResponseEntity.ok(rules)
         }
     }
 // ...
