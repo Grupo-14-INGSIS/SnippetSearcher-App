@@ -2,6 +2,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE IF NOT EXISTS snippet (
     id_snippet VARCHAR PRIMARY KEY,
+    name VARCHAR NOT NULL,
     id_bucket VARCHAR NOT NULL,
     formatter_applied BOOLEAN DEFAULT TRUE,
     linter_applied BOOLEAN DEFAULT TRUE

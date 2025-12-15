@@ -1,7 +1,7 @@
 package com.grupo14IngSis.snippetSearcherApp.dto
 
-data class SnippetCreationRequest(
-    val userId: String,
+data class SnippetPermissionData(
     val name: String,
     val language: String,
+    val permission: String,
 )
