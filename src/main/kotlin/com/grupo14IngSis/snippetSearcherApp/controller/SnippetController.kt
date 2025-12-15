@@ -20,6 +20,8 @@ import com.grupo14IngSis.snippetSearcherApp.dto.StartExecutionResponse
 import com.grupo14IngSis.snippetSearcherApp.repository.SnippetRepository
 import com.grupo14IngSis.snippetSearcherApp.repository.TestRepository
 import com.grupo14IngSis.snippetSearcherApp.service.SnippetTaskProducer
+import org.slf4j.LoggerFactory
+import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.redis.core.RedisTemplate
@@ -50,6 +52,7 @@ class SnippetController(
     private val redisTemplate: RedisTemplate<String, String>,
     @Value("\${redis.stream.key}") private val streamKey: String,
 ) {
+    private val logger = LoggerFactory.getLogger(SnippetController::class.java)
     private val ownerPermission = 2
     private val sharedPermission = 1
     private val noPermission = 0
@@ -580,6 +583,7 @@ class SnippetController(
 
     @PostMapping("/testing")
     fun sendTestingMessage() {
+        val requestId = MDC.get("requestId") ?: "unknown"
         val payload: Map<String, String> =
             mapOf(
                 "task" to "test",
@@ -587,7 +591,12 @@ class SnippetController(
                 "snippetId" to "it",
                 "language" to "language",
             )
-
-        redisTemplate.opsForStream<String, String>().add(streamKey, payload)
+        logger.info("[SNIPPET-APP] Request $requestId - Publishing test message to stream '$streamKey' with payload: $payload")
+        try {
+            redisTemplate.opsForStream<String, String>().add(streamKey, payload)
+            logger.debug("[SNIPPET-APP] Request $requestId - Redis STREAM ADD successful: $streamKey")
+        } catch (ex: Exception) {
+            logger.error("[SNIPPET-APP] Request $requestId - Redis error on STREAM ADD: $streamKey", ex)
+        }
     }
 }

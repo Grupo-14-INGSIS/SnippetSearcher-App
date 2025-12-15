@@ -45,4 +45,4 @@ logging:
     console: "[%X{request_id}] %d{yyyy-MM-dd HH:mm:ss} - %msg%n"
   level:
     root: INFO
-    com.grupo14IngSis.snippetSearcher: DEBUG
+    com.grupo14IngSis.snippetSearcherApp: DEBUG
