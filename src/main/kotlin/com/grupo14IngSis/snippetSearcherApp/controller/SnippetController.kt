@@ -10,7 +10,10 @@ import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForUserResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.InputSendRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.RunTestResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.ShareSnippetRequest
+import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationResponse
+import com.grupo14IngSis.snippetSearcherApp.dto.SnippetData
+import com.grupo14IngSis.snippetSearcherApp.dto.SnippetPermissionData
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetRunRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.StartExecutionResponse
@@ -33,6 +36,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.client.HttpClientErrorException
 import java.util.UUID
 
 @RestController
@@ -67,35 +71,77 @@ class SnippetController(
      *
      * Get all snippets available for a user
      *
-     * Response: a map `Map<String, String>` containing the id of each snippet associated with the user's permission
+     * Response: a map containing the id of each snippet associated with the snippet permission data
      *
      *     {
-     *         snippet1: owner,
-     *         snippet2: shared,
+     *         snippet1: {
+     *             name: String,
+     *             language: String,
+     *             permission: owner
+     *         },
+     *         snippet2: {
+     *             name: String,
+     *             language: String,
+     *             permission: shared
+     *         },
      *         ...
      *     }
      *     */
     @GetMapping("/snippets")
     @PreAuthorize("isAuthenticated()")
-    fun getAllSnippets(authentication: Authentication): ResponseEntity<Map<String, String>> {
+    fun getAllSnippets(authentication: Authentication): ResponseEntity<Map<String, SnippetPermissionData>> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
         val snippetPermissions: GetPermissionsForUserResponse =
             accessManagerClient.getPermissionsForUser(userId) ?: return ResponseEntity.status(404).build()
-        val output = mutableMapOf<String, String>()
-        snippetPermissions.owned.forEach { output[it] = "owner" }
-        snippetPermissions.shared.forEach { output[it] = "shared" }
+        val output = mutableMapOf<String, SnippetPermissionData>()
+        snippetPermissions.owned.forEach {
+            val snippet = snippetRepository.findById(it).get()
+            output[it] = SnippetPermissionData(snippet.name, snippet.language, "owner")
+        }
+        snippetPermissions.shared.forEach {
+            val snippet = snippetRepository.findById(it).get()
+            output[it] = SnippetPermissionData(snippet.name, snippet.language, "shared")
+        }
         return ResponseEntity.ok().body(output)
     }
 
     /**
-     * PUT    /api/v1/snippets/{snippetId}?userId={userId}&language={language}
+     * GET    /api/v1/snippets/{snippetId}
+     *
+     * Get metadata associated with the snippet
+     *
+     * Response:
+     *
+     *     {
+     *         snippetId: String,
+     *         name: String,
+     *         language: String
+     *     }
+     */
+    @GetMapping("/snippets/{snippetId}")
+    fun getSnippetData(
+        @PathVariable snippetId: String,
+    ): ResponseEntity<SnippetData> {
+        val snippet = snippetRepository.findById(snippetId).get()
+        val response = SnippetData(snippet.snippetId, snippet.name, snippet.language)
+        return ResponseEntity.ok().body(response)
+    }
+
+    /**
+     * PUT    /api/v1/snippets/{snippetId}
      *
      * Register a snippet into App's database. It also adds owner permission to the current user.
      *
      * This endpoint is meant to be used by Runner after creating a snippet, using the same JWT used for the creation request
      *
-     * No request body is required as the userId is taken from the JWT and the language is a PathVariable
+     * Request:
+     *
+     *     {
+     *         userId: String,
+     *         name: String, -> Snippet name
+     *         language: String
+     *     }
      *
      * Response:
      *
@@ -107,11 +153,17 @@ class SnippetController(
     @PutMapping("/snippets/{snippetId}")
     fun registerSnippet(
         @PathVariable snippetId: String,
-        @RequestParam(required = true) language: String,
-        @RequestParam(required = true) userId: String,
+        @RequestBody request: SnippetCreationRequest,
     ): ResponseEntity<SnippetCreationResponse> {
         try {
-            snippetRepository.save(Snippet(snippetId, language, snippetId))
+            snippetRepository.save(
+                Snippet(
+                    snippetId,
+                    request.name,
+                    request.language,
+                    snippetId,
+                ),
+            )
         } catch (e: DataIntegrityViolationException) {
             return ResponseEntity.badRequest().body(
                 SnippetCreationResponse(
@@ -127,7 +179,7 @@ class SnippetController(
                 ),
             )
         }
-        accessManagerClient.postPermission(userId, snippetId, "owner")
+        accessManagerClient.postPermission(request.userId, snippetId, "owner")
         return ResponseEntity.ok().body(
             SnippetCreationResponse(
                 true,
@@ -473,15 +525,14 @@ class SnippetController(
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
 
-        val userSnippets = accessManagerClient.getPermissionsForUser(userId) ?: return ResponseEntity.status(404).build()
+        val userSnippets =
+            accessManagerClient.getPermissionsForUser(userId) ?: return ResponseEntity.status(404).build()
         runnerClient.patchRules(userId, request.task, request.language, request.rules)
         snippetTaskProducer.publish(userId, userSnippets.owned, request.language, request.task)
         return ResponseEntity.ok().build()
     }
 
-import org.springframework.web.client.HttpClientErrorException
-
-//...
+    // ...
     @GetMapping("/rules")
     @PreAuthorize("isAuthenticated()")
     fun getRules(
@@ -500,7 +551,7 @@ import org.springframework.web.client.HttpClientErrorException
             return ResponseEntity.ok().body(rules)
         }
     }
-//...
+// ...
 
 // //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

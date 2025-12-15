@@ -28,6 +28,7 @@ Endpoints:
 SnippetController
     GET    /api/v1/snippets
     PUT    /api/v1/snippets/{snippetId}?userId={userId}&language={language}
+    GET    /api/v1/snippets/{snippetId}
     DELETE /api/v1/snippets/{snippetId}
     PUT    /api/v1/snippets/{snippetId}/permission
     DELETE /api/v1/snippets/{snippetId}/permission
@@ -52,18 +53,40 @@ SnippetController
 
 GET    /api/v1/snippets
     Get all snippets available for a user
-    Response: a map Map<String, String> containing the id of each snippet associated with the user's permission
+    Response: a map containing the id of each snippet associated with the snippet permission data
         {
-            snippet1: owner,
-            snippet2: shared,
+            snippet1: {
+                name: String,
+                language: String,
+                permission: owner
+            },
+            snippet2: {
+                name: String,
+                language: String,
+                permission: shared
+            },
             ...
         }
     If the user is not found, returns 404
 
-PUT    /api/v1/snippets/{snippetId}?userId={userId}&language={language}
+GET    /api/v1/snippets/{snippetId}
+    Get metadata associated with the snippet
+    Response:
+        {
+            snippetId: String,
+            name: String,
+            language: String
+        }
+
+PUT    /api/v1/snippets/{snippetId}
     Register a snippet into App's database. It also adds owner permission to the current user.
-    This endpoint is meant to be used by Runner after creating a snippet, using the same JWT used for the creation request
-    No request body is required as the userId is taken from the JWT and the language is a PathVariable
+    This endpoint is meant to be used by Runner after creating a snippet, using the same JWT used for the creation request.
+    Request:
+        {
+            userId: String,
+            name: String, -> Snippet name
+            language: String
+        }
 
     Response:
         {

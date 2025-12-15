@@ -12,6 +12,8 @@ data class Snippet(
     @Column(name = "id_snippet")
     val snippetId: String,
     @Column(nullable = false)
+    val name: String,
+    @Column(nullable = false)
     val language: String,
     @Column(nullable = false)
     val bucketId: String,

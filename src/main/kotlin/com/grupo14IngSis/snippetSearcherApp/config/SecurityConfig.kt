@@ -20,6 +20,7 @@ class SecurityConfig {
                     .requestMatchers("/api/v1/testing").permitAll()
                     .requestMatchers("/api/v1/testing/separator").permitAll()
                     .requestMatchers(HttpMethod.PUT, "/api/v1/snippets/*").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/snippets/*").permitAll()
                     .requestMatchers("/api/v1/**").authenticated()
                     .anyRequest().permitAll()
             }
