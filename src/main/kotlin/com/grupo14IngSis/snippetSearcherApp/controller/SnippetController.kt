@@ -307,7 +307,7 @@ class SnippetController(
      *
      * Create a user
      */
-    @DeleteMapping("/users")
+    @PutMapping("/users")
     @PreAuthorize("isAuthenticated()")
     fun createUser(authentication: Authentication): ResponseEntity<Any> {
         val jwt = authentication.principal as Jwt
