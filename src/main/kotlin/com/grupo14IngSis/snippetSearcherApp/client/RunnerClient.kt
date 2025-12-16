@@ -3,6 +3,7 @@ package com.grupo14IngSis.snippetSearcherApp.client
 import com.grupo14IngSis.snippetSearcherApp.dto.ExecutionEventType
 import com.grupo14IngSis.snippetSearcherApp.dto.InputSendRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.RunTestResponse
+import com.grupo14IngSis.snippetSearcherApp.dto.SnippetData
 import com.grupo14IngSis.snippetSearcherApp.dto.StartExecutionResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.TestResult
 import com.grupo14IngSis.snippetSearcherApp.dto.runnerclient.RunTestRequest
@@ -258,5 +259,19 @@ class RunnerClient(
                 String::class.java,
             ).body ?: return "Error while $task snippet"
         return response
+    }
+
+    fun getSnippetData(snippetId: String): SnippetData? {
+        val url = "$runnerUrl/snippet/snippets/$snippetId"
+        val headers = HttpHeaders()
+        val requestEntity = HttpEntity<Void>(headers)
+        val response =
+            restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                requestEntity,
+                SnippetData::class.java,
+            )
+        return response.body
     }
 }

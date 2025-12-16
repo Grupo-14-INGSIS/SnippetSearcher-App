@@ -28,6 +28,7 @@ import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.redis.core.RedisTemplate
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
@@ -107,8 +108,17 @@ class SnippetController(
             output[it] = SnippetPermissionData(snippet.name, snippet.language, "owner")
         }
         snippetPermissions.shared.forEach {
-            val snippet = snippetRepository.findById(it).get()
-            output[it] = SnippetPermissionData(snippet.name, snippet.language, "shared")
+            var snippet = snippetRepository.findById(it).orElse(null)
+            if (snippet == null) {
+                val snippetData = runnerClient.getSnippetData(it)
+                if (snippetData != null) {
+                    snippet = Snippet(snippetData.snippetId, snippetData.name, snippetData.language, it)
+                    snippetRepository.save(snippet)
+                }
+            }
+            if (snippet != null) {
+                output[it] = SnippetPermissionData(snippet.name, snippet.language, "shared")
+            }
         }
         return ResponseEntity.ok().body(output)
     }
@@ -236,7 +246,7 @@ class SnippetController(
     fun getUsersWithPermission(
         authentication: Authentication,
         @PathVariable snippetId: String,
-    ): ResponseEntity<Map<String, String>> {
+    ): ResponseEntity<List<Map<String, String>>> {
         val jwt = authentication.principal as Jwt
         val ownerId = jwt.subject
         if (getAuthorization(ownerId, snippetId) < ownerPermission) {
@@ -246,10 +256,10 @@ class SnippetController(
             accessManagerClient.getPermissionsForSnippet(snippetId)
                 ?: return ResponseEntity.notFound().build()
         val shared = users.shared
-        val userList = mutableMapOf<String, String>()
+        val userList = mutableListOf<Map<String, String>>()
         for (user in shared) {
-            val userData = userDataRepository.findById(user).get().userName
-            userList[user] = userData
+            val userData = userDataRepository.findById(user).get()
+            userList.add(mapOf("id" to userData.userId, "email" to userData.userName))
         }
         return ResponseEntity.ok(userList)
     }
@@ -277,7 +287,11 @@ class SnippetController(
         if (getAuthorization(ownerId, snippetId) < ownerPermission) {
             return ResponseEntity.status(401).build()
         }
-        accessManagerClient.postPermission(snippetData.userId, snippetId, "shared")
+        try {
+            accessManagerClient.postPermission(snippetData.userId, snippetId, "shared")
+        } catch (e: HttpClientErrorException.BadRequest) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("User already has permission for this snippet.")
+        }
         return ResponseEntity.ok().build()
     }
 
