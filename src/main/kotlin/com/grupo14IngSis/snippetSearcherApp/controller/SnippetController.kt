@@ -5,6 +5,7 @@ import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
 import com.grupo14IngSis.snippetSearcherApp.domain.Snippet
 import com.grupo14IngSis.snippetSearcherApp.domain.Test
 import com.grupo14IngSis.snippetSearcherApp.domain.UserData
+import com.grupo14IngSis.snippetSearcherApp.dto.CancelExecutionRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForUserResponse
