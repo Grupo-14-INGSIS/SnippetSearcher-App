@@ -97,6 +97,15 @@ PUT    /api/v1/snippets/{snippetId}
 DELETE /api/v1/snippets/{snippetId}
     Delete a snippet
 
+GET    /api/v1/snippets/{snippetId}/permission
+    Get all users with permission for a snippet
+    Request:
+        {
+            userId: name...
+            userId2: name,
+            ...
+        }
+
 PUT    /api/v1/snippets/{snippetId}/permission
     Share a snippet with another user
     Request:
@@ -106,6 +115,9 @@ PUT    /api/v1/snippets/{snippetId}/permission
 
 DELETE /api/v1/snippets/{snippetId}/permission/{userId}
     Remove permission for another user
+
+PUT    /api/v1/users
+    Create a user
 
 DELETE /api/v1/users
     Delete a user from all databases

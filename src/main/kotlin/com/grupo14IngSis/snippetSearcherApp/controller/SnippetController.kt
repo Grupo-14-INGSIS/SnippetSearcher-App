@@ -4,6 +4,7 @@ import com.grupo14IngSis.snippetSearcherApp.client.AccessManagerClient
 import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
 import com.grupo14IngSis.snippetSearcherApp.domain.Snippet
 import com.grupo14IngSis.snippetSearcherApp.domain.Test
+import com.grupo14IngSis.snippetSearcherApp.domain.UserData
 import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForUserResponse
@@ -19,6 +20,7 @@ import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.StartExecutionResponse
 import com.grupo14IngSis.snippetSearcherApp.repository.SnippetRepository
 import com.grupo14IngSis.snippetSearcherApp.repository.TestRepository
+import com.grupo14IngSis.snippetSearcherApp.repository.UserDataRepository
 import com.grupo14IngSis.snippetSearcherApp.service.SnippetTaskProducer
 import org.slf4j.LoggerFactory
 import org.slf4j.MDC
@@ -48,6 +50,7 @@ class SnippetController(
     private val runnerClient: RunnerClient,
     private val snippetRepository: SnippetRepository,
     private val testRepository: TestRepository,
+    private val userDataRepository: UserDataRepository,
     private val snippetTaskProducer: SnippetTaskProducer,
     private val redisTemplate: RedisTemplate<String, String>,
     @Value("\${redis.stream.key}") private val streamKey: String,
@@ -215,6 +218,43 @@ class SnippetController(
     }
 
     /**
+     * GET    /api/v1/snippets/{snippetId}/permission
+     *
+     * Get all users with permission for a snippet
+     *
+     * Request:
+     *
+     *     {
+     *       userId: name...
+     *       userId2: name,
+     *       ...
+     *     }
+     */
+    @GetMapping("/snippets/{snippetId}/permission")
+    @PreAuthorize("isAuthenticated()")
+    fun getUsersWithPermission(
+        authentication: Authentication,
+        @PathVariable snippetId: String,
+        @RequestBody snippetData: ShareSnippetRequest,
+    ): ResponseEntity<Map<String, String>> {
+        val jwt = authentication.principal as Jwt
+        val ownerId = jwt.subject
+        if (getAuthorization(ownerId, snippetId) < ownerPermission) {
+            return ResponseEntity.status(401).build()
+        }
+        val users =
+            accessManagerClient.getPermissionsForSnippet(snippetData.userId)
+                ?: return ResponseEntity.notFound().build()
+        val shared = users.shared
+        val userList = mutableMapOf<String, String>()
+        for (user in shared) {
+            val userData = userDataRepository.findById(user).get().userName
+            userList[user] = userData
+        }
+        return ResponseEntity.ok(userList)
+    }
+
+    /**
      * PUT    /api/v1/snippets/{snippetId}/permission
      *
      * Share a snippet with another user
@@ -259,6 +299,23 @@ class SnippetController(
             return ResponseEntity.status(401).build()
         }
         accessManagerClient.deletePermission(userId, snippetId)
+        return ResponseEntity.ok().build()
+    }
+
+    /**
+     * PUT /api/v1/users
+     *
+     * Create a user
+     */
+    @DeleteMapping("/users")
+    @PreAuthorize("isAuthenticated()")
+    fun createUser(authentication: Authentication): ResponseEntity<Any> {
+        val jwt = authentication.principal as Jwt
+        val userId = jwt.subject
+        val userName = jwt.getClaimAsString("name")
+
+        userDataRepository.save(UserData(userId, userName))
+        runnerClient.createUser(userId)
         return ResponseEntity.ok().build()
     }
 

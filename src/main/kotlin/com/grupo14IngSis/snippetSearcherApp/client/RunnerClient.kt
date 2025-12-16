@@ -188,6 +188,18 @@ class RunnerClient(
         )
     }
 
+    fun createUser(userId: String) {
+        val url = "$runnerUrl/users/$userId"
+        val headers = HttpHeaders()
+        val requestEntity = HttpEntity<Void>(headers)
+        restTemplate.exchange(
+            url,
+            HttpMethod.PUT,
+            requestEntity,
+            Void::class.java,
+        )
+    }
+
     fun deleteUser(userId: String) {
         val url = "$runnerUrl/users/$userId"
         val headers = HttpHeaders()
