@@ -236,7 +236,7 @@ class SnippetController(
     fun getUsersWithPermission(
         authentication: Authentication,
         @PathVariable snippetId: String,
-    ): ResponseEntity<Map<String, String>> {
+    ): ResponseEntity<List<Map<String, String>>> {
         val jwt = authentication.principal as Jwt
         val ownerId = jwt.subject
         if (getAuthorization(ownerId, snippetId) < ownerPermission) {
@@ -246,10 +246,10 @@ class SnippetController(
             accessManagerClient.getPermissionsForSnippet(snippetId)
                 ?: return ResponseEntity.notFound().build()
         val shared = users.shared
-        val userList = mutableMapOf<String, String>()
+        val userList = mutableListOf<Map<String, String>>()
         for (user in shared) {
-            val userData = userDataRepository.findById(user).get().userName
-            userList[user] = userData
+            val userData = userDataRepository.findById(user).get()
+            userList.add(mapOf("id" to userData.userId, "email" to userData.userName))
         }
         return ResponseEntity.ok(userList)
     }
