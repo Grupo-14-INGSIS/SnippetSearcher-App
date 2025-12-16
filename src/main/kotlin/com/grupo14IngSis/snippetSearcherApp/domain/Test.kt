@@ -24,6 +24,6 @@ data class Test(
     @Column(name = "version", columnDefinition = "text")
     val version: String,
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "environment", columnDefinition = "jsonb")
+    @Column(name = "config_rules", columnDefinition = "jsonb")
     val environment: Map<String, String> = emptyMap(),
 )
