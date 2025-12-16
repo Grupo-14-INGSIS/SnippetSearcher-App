@@ -636,6 +636,28 @@ class SnippetController(
         return ResponseEntity.ok().build()
     }
 
+    /**
+     * PUT /api/c1/snippets/{snippetId}/task/{task}
+     *
+     * Apply a synchronous task to a snippet
+     *
+     * Returns the raw content of the processed snippet
+     */
+    @PutMapping("/snippets/{snippetId}/task/{task}")
+    fun synchronousTask(
+        authentication: Authentication,
+        @PathVariable snippetId: String,
+        @PathVariable task: String,
+    ): ResponseEntity<String> {
+        val jwt = authentication.principal as Jwt
+        val userId = jwt.subject
+        if (getAuthorization(userId, snippetId) < ownerPermission) {
+            return ResponseEntity.status(401).build()
+        }
+        val processedSnippet = runnerClient.callTask(snippetId, task)
+        return ResponseEntity.ok().body(processedSnippet)
+    }
+
     // ...
 
     /**

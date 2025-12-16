@@ -242,4 +242,21 @@ class RunnerClient(
             Void::class.java,
         )
     }
+
+    fun callTask(
+        snippetId: String,
+        task: String,
+    ): String {
+        val url = "$runnerUrl/snippets/$snippetId/$task"
+        val headers = HttpHeaders()
+        val requestEntity = HttpEntity<Void>(headers)
+        val response =
+            restTemplate.exchange(
+                url,
+                HttpMethod.PUT,
+                requestEntity,
+                String::class.java,
+            ).body ?: return "Error while $task snippet"
+        return response
+    }
 }

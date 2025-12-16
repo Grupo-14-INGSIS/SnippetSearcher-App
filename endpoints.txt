@@ -190,6 +190,10 @@ PUT    /api/v1/rules
             rules: Map<String, Any>
         }
 
+PUT /api/c1/snippets/{snippetId}/task/{task}
+    Apply a synchronous task to a snippet
+    Returns the raw content of the processed snippet
+
 GET    /api/v1/rules?task={task}&language={language}
     Get all user's rules for a specific task and language
     Response: Map<String Any>
