@@ -15,9 +15,6 @@ import com.grupo14IngSis.snippetSearcherApp.dto.ShareSnippetRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetData
-import com.grupo14IngSis.snippetSearcherApp.dto.SnippetFormatRequest
-import com.grupo14IngSis.snippetSearcherApp.dto.SnippetLintRequest
-import com.grupo14IngSis.snippetSearcherApp.dto.SnippetLintResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetPermissionData
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetRunRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateRequest
@@ -239,7 +236,6 @@ class SnippetController(
     fun getUsersWithPermission(
         authentication: Authentication,
         @PathVariable snippetId: String,
-        @RequestBody snippetData: ShareSnippetRequest,
     ): ResponseEntity<Map<String, String>> {
         val jwt = authentication.principal as Jwt
         val ownerId = jwt.subject
@@ -247,7 +243,7 @@ class SnippetController(
             return ResponseEntity.status(401).build()
         }
         val users =
-            accessManagerClient.getPermissionsForSnippet(snippetData.userId)
+            accessManagerClient.getPermissionsForSnippet(snippetId)
                 ?: return ResponseEntity.notFound().build()
         val shared = users.shared
         val userList = mutableMapOf<String, String>()
@@ -703,45 +699,5 @@ class SnippetController(
         } catch (ex: Exception) {
             logger.error("[SNIPPET-APP] Request $requestId - Redis error on STREAM ADD: $streamKey", ex)
         }
-    }
-
-    @PostMapping("/snippets/{snippetId}/format")
-    @PreAuthorize("isAuthenticated()")
-    fun formatSnippet(
-        authentication: Authentication,
-        @PathVariable snippetId: String,
-        @RequestBody request: SnippetFormatRequest,
-    ): ResponseEntity<String> {
-        val jwt = authentication.principal as Jwt
-        val userId = jwt.subject
-        if (getAuthorization(userId, snippetId) < sharedPermission) {
-            return ResponseEntity.status(401).build()
-        }
-        val snippet = snippetRepository.findById(snippetId)
-        if (snippet.isEmpty) {
-            return ResponseEntity.notFound().build()
-        }
-        val formattedCode = runnerClient.formatSnippet(snippetId, request.version)
-        return ResponseEntity.ok().body(formattedCode)
-    }
-
-    @PostMapping("/snippets/{snippetId}/lint")
-    @PreAuthorize("isAuthenticated()")
-    fun lintSnippet(
-        authentication: Authentication,
-        @PathVariable snippetId: String,
-        @RequestBody request: SnippetLintRequest,
-    ): ResponseEntity<SnippetLintResponse> {
-        val jwt = authentication.principal as Jwt
-        val userId = jwt.subject
-        if (getAuthorization(userId, snippetId) < sharedPermission) {
-            return ResponseEntity.status(401).build()
-        }
-        val snippet = snippetRepository.findById(snippetId)
-        if (snippet.isEmpty) {
-            return ResponseEntity.notFound().build()
-        }
-        val lintingErrors = runnerClient.lintSnippet(snippetId, request.version)
-        return ResponseEntity.ok().body(SnippetLintResponse(lintingErrors))
     }
 }
