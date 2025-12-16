@@ -347,10 +347,19 @@ class SnippetController(
      *
      * Get all tests for a snippet
      *
-     * Response: a list `List<String>` containing all test IDs
+     * Response: a Map containing all test
      *
      *     {
-     *       [testId]
+     *       testId1: {
+     *         testId: String
+     *         snippetId: String,
+     *         input: List<String>,
+     *         output: List<String>,
+     *         version: String,
+     *         environment: Map<String, String>
+     *       },
+     *       testId2: {...},
+     *       ...
      *     }
      */
     @GetMapping("/snippets/{snippetId}/tests")
@@ -358,14 +367,18 @@ class SnippetController(
     fun getAllTests(
         authentication: Authentication,
         @PathVariable snippetId: String,
-    ): ResponseEntity<List<String>> {
+    ): ResponseEntity<Map<String, Test>> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
         if (getAuthorization(userId, snippetId) < sharedPermission) {
             return ResponseEntity.status(401).build()
         }
+        val response = mutableMapOf<String, Test>()
         val tests = testRepository.findTestIdsBySnippetId(snippetId)
-        return ResponseEntity.ok(tests)
+        for (test in tests) {
+            response[test] = testRepository.findById(test).get()
+        }
+        return ResponseEntity.ok(response)
     }
 
     /**

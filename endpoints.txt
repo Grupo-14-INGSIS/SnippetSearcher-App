@@ -124,9 +124,18 @@ DELETE /api/v1/users
 
 GET    /api/v1/snippets/{snippetId}/tests
     Get all tests for a snippet
-    Response: a list containing all tests IDs
+    Response: a Map containing all test
         {
-            [testId]
+            testId1: {
+                testId: String
+                snippetId: String,
+                input: List<String>,
+                output: List<String>,
+                version: String,
+                environment: Map<String, String>
+            },
+            testId2: {...},
+            ...
         }
 
 POST   /api/v1/snippets/{snippetId}/tests

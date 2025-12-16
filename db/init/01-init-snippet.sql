@@ -17,5 +17,6 @@ CREATE TABLE IF NOT EXISTS test (
     id_test UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     id_snippet VARCHAR NOT NULL,
     in_put TEXT[],
-    out_put TEXT
+    out_put TEXT,
+    environment JSONB
 );
