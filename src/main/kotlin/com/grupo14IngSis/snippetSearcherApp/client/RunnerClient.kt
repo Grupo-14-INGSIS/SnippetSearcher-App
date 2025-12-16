@@ -85,7 +85,7 @@ class RunnerClient(
         snippetId: String,
         userId: String,
     ) {
-        val url = "$runnerUrl/snippet/snippets/$snippetId/run/"
+        val url = "$runnerUrl/snippet/snippets/$snippetId/run"
         val requestEntity =
             HttpEntity<SnippetExecutionRunerCancel>(
                 SnippetExecutionRunerCancel(userId),
