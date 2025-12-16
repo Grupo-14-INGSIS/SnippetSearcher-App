@@ -561,8 +561,7 @@ class SnippetController(
     fun cancelSnippetExecution(
         authentication: Authentication,
         @PathVariable snippetId: String,
-        @RequestBody request: InputSendRequest,
-        // TODO: This should be CancelExecutionRequest
+        @RequestBody request: CancelExecutionRequest,
     ): ResponseEntity<Any> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
