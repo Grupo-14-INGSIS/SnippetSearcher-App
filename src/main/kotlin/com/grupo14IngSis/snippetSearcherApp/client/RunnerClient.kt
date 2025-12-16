@@ -44,7 +44,7 @@ class RunnerClient(
         version: String,
         environment: Map<String, String>,
     ): StartExecutionResponse {
-        val url = "$runnerUrl/snippets/$snippetId/run"
+        val url = "$runnerUrl/snippets/$snippetId/execution"
         val headers = HttpHeaders()
         val requestEntity =
             HttpEntity<SnippetExecutionRunnerRequest>(
@@ -66,7 +66,7 @@ class RunnerClient(
         userId: String,
         input: String,
     ) {
-        val url = "$runnerUrl/snippets/$snippetId/run/input"
+        val url = "$runnerUrl/snippets/$snippetId/execution/input"
         val headers = HttpHeaders()
         val requestEntity =
             HttpEntity<InputSendRequest>(
@@ -85,7 +85,7 @@ class RunnerClient(
         snippetId: String,
         userId: String,
     ) {
-        val url = "$runnerUrl/snippets/$snippetId/run/"
+        val url = "$runnerUrl/snippets/$snippetId/execution/"
         val requestEntity =
             HttpEntity<SnippetExecutionRunerCancel>(
                 SnippetExecutionRunerCancel(userId),
