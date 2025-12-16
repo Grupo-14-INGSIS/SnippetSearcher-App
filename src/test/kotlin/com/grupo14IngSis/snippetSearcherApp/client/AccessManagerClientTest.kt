@@ -1,6 +1,7 @@
 package com.grupo14IngSis.snippetSearcherApp.client
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForUserResponse
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -59,6 +60,27 @@ class AccessManagerClientTest {
                 owned = emptyList(),
                 shared = emptyList(),
             )
+
+        assertEquals(expectedResponse, actualResponse)
+    }
+
+    @Test
+    fun `postPermission should send request to access manager`() {
+        val userId = "user123"
+        val snippetId = "snippet1"
+        val role = "owner"
+        val expectedResponse =
+            GetPermissionResponse(
+                userId = userId,
+                snippetId = snippetId,
+                role = role,
+            )
+        val responseJson = objectMapper.writeValueAsString(expectedResponse)
+
+        server.expect(requestTo("http://localhost/permissions"))
+            .andRespond(withSuccess(responseJson, MediaType.APPLICATION_JSON))
+
+        val actualResponse = client.postPermission(userId, snippetId, role)
 
         assertEquals(expectedResponse, actualResponse)
     }

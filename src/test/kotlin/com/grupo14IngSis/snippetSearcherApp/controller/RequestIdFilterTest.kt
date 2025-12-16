@@ -1,5 +1,6 @@
-package com.grupo14IngSis.snippetSearcher
+package com.grupo14IngSis.snippetSearcherApp.controller
 
+import com.grupo14IngSis.snippetSearcherApp.filter.RequestIdFilter
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse

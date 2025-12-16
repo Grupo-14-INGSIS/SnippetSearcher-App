@@ -1,6 +1,7 @@
 package com.grupo14IngSis.snippetSearcherApp.service
 
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.stereotype.Service
@@ -18,6 +19,7 @@ class SnippetTaskProducer(
         language: String,
         task: String,
     ) {
+        val requestId = MDC.get("requestId") ?: "unknown"
         snippets.forEach {
             val payload: Map<String, String> =
                 mapOf(
@@ -26,8 +28,13 @@ class SnippetTaskProducer(
                     "snippetId" to it,
                     "language" to language,
                 )
-            logger.info("Publishing task to stream '$streamKey' with payload: $payload")
-            redisTemplate.opsForStream<String, String>().add(streamKey, payload)
+            logger.info("[SNIPPET-APP] Request $requestId - Publishing task to stream '$streamKey' with payload: $payload")
+            try {
+                redisTemplate.opsForStream<String, String>().add(streamKey, payload)
+                logger.debug("[SNIPPET-APP] Request $requestId - Redis STREAM ADD successful: $streamKey")
+            } catch (ex: Exception) {
+                logger.error("[SNIPPET-APP] Request $requestId - Redis error on STREAM ADD: $streamKey", ex)
+            }
         }
     }
 }
