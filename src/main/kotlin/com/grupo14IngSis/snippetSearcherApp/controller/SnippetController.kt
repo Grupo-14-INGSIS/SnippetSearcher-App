@@ -556,24 +556,55 @@ class SnippetController(
         return ResponseEntity.noContent().build()
     }
 
-    /**
-     * DELETE /api/v1/snippets/{snippetId}/execution
-     *
-     * Cancel execution of a snippet
-     */
     @DeleteMapping("/snippets/{snippetId}/execution")
     @PreAuthorize("isAuthenticated()")
     fun cancelSnippetExecution(
         authentication: Authentication,
         @PathVariable snippetId: String,
+        @RequestBody request: InputSendRequest, // TODO: This should be CancelExecutionRequest
     ): ResponseEntity<Any> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
         if (getAuthorization(userId, snippetId) < sharedPermission) {
             return ResponseEntity.status(401).build()
         }
+        val snippet = snippetRepository.findById(snippetId)
+        if (snippet.isEmpty) {
+            return ResponseEntity.notFound().build()
+        }
         runnerClient.cancelExecution(snippetId, userId)
         return ResponseEntity.ok().build()
+    }
+
+    /**
+     * GET    /api/v1/snippets/{snippetId}/run/status
+     *
+     * Get the current status of a snippet execution.
+     *
+     * Response:
+     *
+     *     {
+     *       status: String (COMPLETED/OUTPUT/WAITING/ERROR),
+     *       message: List<String>
+     *     }
+     */
+    @GetMapping("/snippets/{snippetId}/run/status")
+    @PreAuthorize("isAuthenticated()")
+    fun getExecutionStatus(
+        authentication: Authentication,
+        @PathVariable snippetId: String,
+    ): ResponseEntity<StartExecutionResponse> {
+        val jwt = authentication.principal as Jwt
+        val userId = jwt.subject
+        if (getAuthorization(userId, snippetId) < sharedPermission) {
+            return ResponseEntity.status(401).build()
+        }
+        val snippet = snippetRepository.findById(snippetId)
+        if (snippet.isEmpty) {
+            return ResponseEntity.notFound().build()
+        }
+        val output = runnerClient.getExecutionStatus(snippetId)
+        return ResponseEntity.ok().body(output)
     }
 
     /**
