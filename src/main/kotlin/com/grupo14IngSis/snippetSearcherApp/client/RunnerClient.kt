@@ -2,7 +2,11 @@ package com.grupo14IngSis.snippetSearcherApp.client
 
 import com.grupo14IngSis.snippetSearcherApp.dto.ExecutionEventType
 import com.grupo14IngSis.snippetSearcherApp.dto.InputSendRequest
+import com.grupo14IngSis.snippetSearcherApp.dto.LintingError
 import com.grupo14IngSis.snippetSearcherApp.dto.RunTestResponse
+import com.grupo14IngSis.snippetSearcherApp.dto.SnippetFormatRequest
+import com.grupo14IngSis.snippetSearcherApp.dto.SnippetLintRequest
+import com.grupo14IngSis.snippetSearcherApp.dto.SnippetLintResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.StartExecutionResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.TestResult
 import com.grupo14IngSis.snippetSearcherApp.dto.runnerclient.RunTestRequest
@@ -241,5 +245,49 @@ class RunnerClient(
             requestEntity,
             Void::class.java,
         )
+    }
+
+// ##### FORMATTING AND LINTING #####
+
+    fun formatSnippet(
+        snippetId: String,
+        version: String,
+    ): String {
+        val url = "$runnerUrl/snippets/$snippetId/format"
+        val headers = HttpHeaders()
+        val requestEntity =
+            HttpEntity<SnippetFormatRequest>(
+                SnippetFormatRequest(version),
+                headers,
+            )
+        val response =
+            restTemplate.exchange(
+                url,
+                HttpMethod.POST,
+                requestEntity,
+                String::class.java,
+            ).body ?: ""
+        return response
+    }
+
+    fun lintSnippet(
+        snippetId: String,
+        version: String,
+    ): List<LintingError> {
+        val url = "$runnerUrl/snippets/$snippetId/lint"
+        val headers = HttpHeaders()
+        val requestEntity =
+            HttpEntity<SnippetLintRequest>(
+                SnippetLintRequest(version),
+                headers,
+            )
+        val response =
+            restTemplate.exchange(
+                url,
+                HttpMethod.POST,
+                requestEntity,
+                SnippetLintResponse::class.java,
+            ).body?.errors ?: emptyList()
+        return response
     }
 }
