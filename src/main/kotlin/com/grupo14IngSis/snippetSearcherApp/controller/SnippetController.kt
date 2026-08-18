@@ -287,8 +287,12 @@ class SnippetController(
         if (getAuthorization(ownerId, snippetId) < ownerPermission) {
             return ResponseEntity.status(401).build()
         }
+
+        val targetUser = userDataRepository.findByUserName(snippetData.userId)
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User with email ${snippetData.userId} not found.")
+
         try {
-            accessManagerClient.postPermission(snippetData.userId, snippetId, "shared")
+            accessManagerClient.postPermission(targetUser.userId, snippetId, "shared")
         } catch (e: HttpClientErrorException.BadRequest) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("User already has permission for this snippet.")
         }
@@ -323,13 +327,17 @@ class SnippetController(
      */
     @PutMapping("/users")
     @PreAuthorize("isAuthenticated()")
-    fun createUser(authentication: Authentication): ResponseEntity<Any> {
+    fun createUser(authentication: Authentication, @RequestBody(required = false) body: Map<String, String>?): ResponseEntity<Any> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
-        val userName = jwt.getClaimAsString("name")
+        val userName = body?.get("email") ?: jwt.getClaimAsString("email") ?: jwt.getClaimAsString("nickname") ?: jwt.getClaimAsString("name") ?: "Unknown User"
 
         userDataRepository.save(UserData(userId, userName))
-        runnerClient.createUser(userId)
+        try {
+            runnerClient.createUser(userId)
+        } catch (e: Exception) {
+            logger.warn("El usuario ya existe en el Runner o hubo un error, ignorando: \${e.message}")
+        }
         return ResponseEntity.ok().build()
     }
 
