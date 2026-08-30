@@ -396,9 +396,9 @@ class SnippetController(
             return ResponseEntity.status(401).build()
         }
         val response = mutableMapOf<String, Test>()
-        val tests = testRepository.findTestIdsBySnippetId(snippetId)
+        val tests = testRepository.findBySnippetId(snippetId)
         for (test in tests) {
-            response[test] = testRepository.findById(test).get()
+            response[test.testId] = test
         }
         return ResponseEntity.ok(response)
     }
@@ -473,11 +473,12 @@ class SnippetController(
         if (getAuthorization(userId, snippetId) < sharedPermission) {
             return ResponseEntity.status(401).build()
         }
-        val test = testRepository.findById(testId).get()
+        val test = testRepository.findById(testId).orElse(null)
+            ?: return ResponseEntity.notFound().build()
         val result =
             runnerClient.runTest(
                 snippetId,
-                testId,
+                userId,
                 test.version,
                 test.environment,
                 test.input,

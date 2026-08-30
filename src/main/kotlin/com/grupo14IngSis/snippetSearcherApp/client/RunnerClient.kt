@@ -118,7 +118,7 @@ class RunnerClient(
 
     fun runTest(
         snippetId: String,
-        testId: String,
+        userId: String,
         version: String,
         environment: Map<String, String>,
         input: List<String>,
@@ -129,7 +129,7 @@ class RunnerClient(
             HttpEntity<RunTestRequest>(
                 RunTestRequest(
                     snippetId,
-                    testId,
+                    userId,
                     version,
                     environment,
                     input,
@@ -140,7 +140,7 @@ class RunnerClient(
         val response =
             restTemplate.exchange(
                 url,
-                HttpMethod.DELETE,
+                HttpMethod.POST,
                 requestEntity,
                 RunTestResponse::class.java,
             ).body ?: RunTestResponse(
