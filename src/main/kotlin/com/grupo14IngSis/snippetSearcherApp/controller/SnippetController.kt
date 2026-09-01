@@ -218,14 +218,20 @@ class SnippetController(
     ): ResponseEntity<Any> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
-        if (getAuthorization(userId, snippetId) < ownerPermission) {
+        val auth = getAuthorization(userId, snippetId)
+        
+        if (auth == ownerPermission) {
+            accessManagerClient.deletePermissionForSnippet(snippetId)
+            runnerClient.deleteSnippet("snippets", snippetId)
+            snippetRepository.deleteById(snippetId)
+            testRepository.deleteBySnippetId(snippetId)
+            return ResponseEntity.ok().build()
+        } else if (auth == sharedPermission) {
+            accessManagerClient.deletePermission(userId, snippetId)
+            return ResponseEntity.ok().build()
+        } else {
             return ResponseEntity.status(401).build()
         }
-        accessManagerClient.deletePermissionForSnippet(snippetId)
-        runnerClient.deleteSnippet("snippets", snippetId)
-        snippetRepository.deleteById(snippetId)
-        testRepository.deleteBySnippetId(snippetId)
-        return ResponseEntity.ok().build()
     }
 
     /**
@@ -288,8 +294,9 @@ class SnippetController(
             return ResponseEntity.status(401).build()
         }
 
-        val targetUser = userDataRepository.findByUserName(snippetData.userId)
-            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User with email ${snippetData.userId} not found.")
+        val targetUser =
+            userDataRepository.findByUserName(snippetData.userId)
+                ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User with email ${snippetData.userId} not found.")
 
         try {
             accessManagerClient.postPermission(targetUser.userId, snippetId, "shared")
@@ -327,7 +334,10 @@ class SnippetController(
      */
     @PutMapping("/users")
     @PreAuthorize("isAuthenticated()")
-    fun createUser(authentication: Authentication, @RequestBody(required = false) body: Map<String, String>?): ResponseEntity<Any> {
+    fun createUser(
+        authentication: Authentication,
+        @RequestBody(required = false) body: Map<String, String>?,
+    ): ResponseEntity<Any> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
         val userName = body?.get("email") ?: jwt.getClaimAsString("email") ?: jwt.getClaimAsString("nickname") ?: jwt.getClaimAsString("name") ?: "Unknown User"
