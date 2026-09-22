@@ -104,8 +104,16 @@ class SnippetController(
             accessManagerClient.getPermissionsForUser(userId) ?: return ResponseEntity.status(404).build()
         val output = mutableMapOf<String, SnippetPermissionData>()
         snippetPermissions.owned.forEach {
-            val snippet = snippetRepository.findById(it).get()
-            output[it] = SnippetPermissionData(snippet.name, snippet.language, "owner")
+            val snippet = snippetRepository.findById(it).orElse(null)
+            if (snippet != null) {
+                output[it] = SnippetPermissionData(
+                    snippet.name,
+                    snippet.language,
+                    "owner",
+                    compliance = snippet.compliance,
+                    status = snippet.compliance,
+                )
+            }
         }
         snippetPermissions.shared.forEach {
             var snippet = snippetRepository.findById(it).orElse(null)
@@ -117,7 +125,13 @@ class SnippetController(
                 }
             }
             if (snippet != null) {
-                output[it] = SnippetPermissionData(snippet.name, snippet.language, "shared")
+                output[it] = SnippetPermissionData(
+                    snippet.name,
+                    snippet.language,
+                    "shared",
+                    compliance = snippet.compliance,
+                    status = snippet.compliance,
+                )
             }
         }
         return ResponseEntity.ok().body(output)
@@ -141,7 +155,13 @@ class SnippetController(
         @PathVariable snippetId: String,
     ): ResponseEntity<SnippetData> {
         val snippet = snippetRepository.findById(snippetId).get()
-        val response = SnippetData(snippet.snippetId, snippet.name, snippet.language)
+        val response = SnippetData(
+            snippetId = snippet.snippetId,
+            name = snippet.name,
+            language = snippet.language,
+            compliance = snippet.compliance,
+            status = snippet.compliance,
+        )
         return ResponseEntity.ok().body(response)
     }
 
@@ -655,7 +675,39 @@ class SnippetController(
         val userSnippets =
             accessManagerClient.getPermissionsForUser(userId) ?: return ResponseEntity.status(404).build()
         runnerClient.patchRules(userId, request.task, request.language, request.rules)
-        snippetTaskProducer.publish(userId, userSnippets.owned, request.language, request.task)
+        if (request.applyToSnippets) {
+            snippetTaskProducer.publish(userId, userSnippets.owned, request.language, request.task)
+        }
+        return ResponseEntity.ok().build()
+    }
+
+    /**
+     * PATCH /api/v1/snippets/{snippetId}/status
+     *
+     * Update task status (formatting/linting) and compliance for a snippet
+     */
+    @org.springframework.web.bind.annotation.PatchMapping("/snippets/{snippetId}/status")
+    fun updateSnippetStatus(
+        @PathVariable snippetId: String,
+        @RequestBody request: com.grupo14IngSis.snippetSearcherApp.dto.SnippetStatusUpdateRequest,
+    ): ResponseEntity<Any> {
+        val snippetOptional = snippetRepository.findById(snippetId)
+        if (snippetOptional.isEmpty) {
+            return ResponseEntity.notFound().build()
+        }
+        val snippet = snippetOptional.get()
+        val taskName = request.task.lowercase()
+        if (taskName.contains("format")) {
+            snippet.formatterApplied = request.status
+        } else if (taskName.contains("lint")) {
+            snippet.linterApplied = request.status
+            if (request.compliance != null) {
+                snippet.compliance = request.compliance
+            } else {
+                snippet.compliance = if (request.status) "compliant" else "not-compliant"
+            }
+        }
+        snippetRepository.save(snippet)
         return ResponseEntity.ok().build()
     }
 
