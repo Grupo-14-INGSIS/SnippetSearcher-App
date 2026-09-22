@@ -4,4 +4,5 @@ data class SnippetUpdateRequest(
     val task: String,
     val language: String,
     val rules: Map<String, Any>,
+    val applyToSnippets: Boolean = true,
 )
