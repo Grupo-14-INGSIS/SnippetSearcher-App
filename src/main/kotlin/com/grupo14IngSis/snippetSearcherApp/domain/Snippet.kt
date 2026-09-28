@@ -21,4 +21,6 @@ data class Snippet(
     var formatterApplied: Boolean = true,
     @Column(name = "linter_applied")
     var linterApplied: Boolean = true,
+    @Column(name = "compliance")
+    var compliance: String = "pending",
 )
