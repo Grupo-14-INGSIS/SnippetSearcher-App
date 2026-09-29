@@ -13,7 +13,9 @@ interface TestRepository : JpaRepository<Test, String> {
     fun deleteBySnippetId(snippetId: String)
 
     @Query("SELECT t.testId FROM Test t WHERE t.snippetId = :snippetId")
-    fun findTestIdsBySnippetId(@Param("snippetId") snippetId: String): List<String>
+    fun findTestIdsBySnippetId(
+        @Param("snippetId") snippetId: String,
+    ): List<String>
 
     fun findBySnippetId(snippetId: String): List<Test>
 }

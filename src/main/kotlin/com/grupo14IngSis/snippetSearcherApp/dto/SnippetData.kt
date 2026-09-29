@@ -6,4 +6,6 @@ data class SnippetData(
     val language: String,
     val compliance: String? = null,
     val status: String? = null,
+    val description: String? = null,
+    val version: String? = null,
 )
