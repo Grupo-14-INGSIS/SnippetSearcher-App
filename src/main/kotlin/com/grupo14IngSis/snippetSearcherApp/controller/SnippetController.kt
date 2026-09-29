@@ -161,6 +161,8 @@ class SnippetController(
             language = snippet.language,
             compliance = snippet.compliance,
             status = snippet.compliance,
+            description = snippet.description,
+            version = snippet.version,
         )
         return ResponseEntity.ok().body(response)
     }
@@ -199,6 +201,8 @@ class SnippetController(
                     request.name,
                     request.language,
                     snippetId,
+                    description = request.description,
+                    version = request.version,
                 ),
             )
         } catch (e: DataIntegrityViolationException) {
@@ -382,6 +386,27 @@ class SnippetController(
         accessManagerClient.deletePermissionForUser(userId)
         runnerClient.deleteUser(userId)
         return ResponseEntity.ok().build()
+    }
+
+    /**
+     * GET /api/v1/users
+     *
+     * List all registered users, optionally filtered by name.
+     * Used by the share snippet autocomplete in the frontend.
+     */
+    @GetMapping("/users")
+    @PreAuthorize("isAuthenticated()")
+    fun listUsers(
+        @RequestParam(required = false) name: String?,
+    ): ResponseEntity<List<Map<String, String>>> {
+        val allUsers = userDataRepository.findAll()
+        val filtered = if (!name.isNullOrBlank()) {
+            allUsers.filter { it.userName.contains(name, ignoreCase = true) }
+        } else {
+            allUsers
+        }
+        val result = filtered.map { mapOf("id" to it.userId, "name" to it.userName) }
+        return ResponseEntity.ok(result)
     }
 
     /**
@@ -712,6 +737,32 @@ class SnippetController(
     }
 
     /**
+     * PATCH /api/v1/snippets/{snippetId}
+     *
+     * Update snippet metadata (name, description). The code content is managed by the Runner service.
+     */
+    @org.springframework.web.bind.annotation.PatchMapping("/snippets/{snippetId}")
+    @PreAuthorize("isAuthenticated()")
+    fun updateSnippetMetadata(
+        authentication: Authentication,
+        @PathVariable snippetId: String,
+        @RequestBody body: Map<String, String>,
+    ): ResponseEntity<Any> {
+        val jwt = authentication.principal as Jwt
+        val userId = jwt.subject
+        if (getAuthorization(userId, snippetId) < ownerPermission) {
+            return ResponseEntity.status(401).build()
+        }
+        val snippetOptional = snippetRepository.findById(snippetId)
+        if (snippetOptional.isEmpty) return ResponseEntity.notFound().build()
+        val snippet = snippetOptional.get()
+        body["description"]?.let { snippet.description = it }
+        body["version"]?.let { snippet.version = it }
+        snippetRepository.save(snippet)
+        return ResponseEntity.ok().build()
+    }
+
+    /**
      * PUT /api/c1/snippets/{snippetId}/task/{task}
      *
      * Apply a synchronous task to a snippet
@@ -774,8 +825,8 @@ class SnippetController(
     fun printSeparator() {
         println(
             "###############################################################\n" +
-                "# SEPARATOR SEPARATOR SEPARATOR SEPARATOR SEPARATOR SEPARATOR #\n" +
-                "###############################################################",
+                    "# SEPARATOR SEPARATOR SEPARATOR SEPARATOR SEPARATOR SEPARATOR #\n" +
+                    "###############################################################",
         )
     }
 
