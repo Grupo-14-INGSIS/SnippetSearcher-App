@@ -23,4 +23,8 @@ data class Snippet(
     var linterApplied: Boolean = true,
     @Column(name = "compliance")
     var compliance: String = "pending",
+    @Column(name = "description", columnDefinition = "TEXT DEFAULT ''")
+    var description: String = "",
+    @Column(name = "version", columnDefinition = "TEXT DEFAULT '1.1'")
+    var version: String = "1.1",
 )
