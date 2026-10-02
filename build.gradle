@@ -28,6 +28,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'tools.jackson.module:jackson-module-kotlin'
     implementation 'com.fasterxml.jackson.module:jackson-module-kotlin'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'io.hypersistence:hypersistence-utils-hibernate-63:3.12.0'
@@ -43,13 +44,18 @@ dependencies {
 
     testImplementation "org.junit.jupiter:junit-jupiter:5.9.3"
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-restclient-test'
     testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testImplementation 'org.springframework.security:spring-security-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'com.h2database:h2'
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
+
+ktlint {
+    version = "1.4.0"
+}
+
 
 tasks.named('test') {
     useJUnitPlatform()
@@ -98,7 +104,4 @@ application {
 tasks.bootJar {
     mainClass.set("com.grupo14IngSis.snippetSearcherApp.SnippetSearcherAppKt")
 }
-
-tasks.withType(Test).configureEach {
-    enabled = false
-}
+
