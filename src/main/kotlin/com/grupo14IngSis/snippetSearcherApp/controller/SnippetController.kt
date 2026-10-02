@@ -819,7 +819,7 @@ class SnippetController(
         authentication: Authentication,
         @RequestParam task: String,
         @RequestParam language: String,
-    ): ResponseEntity<Map<String, Any>?> {
+    ): ResponseEntity<Map<String, Any>> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
         try {
