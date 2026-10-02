@@ -53,12 +53,13 @@ class RunnerClient(
                 headers,
             )
         val response =
-            restTemplate.exchange(
-                url,
-                HttpMethod.POST,
-                requestEntity,
-                StartExecutionResponse::class.java,
-            ).body ?: StartExecutionResponse(ExecutionEventType.ERROR, listOf("Could not fetch response"))
+            restTemplate
+                .exchange(
+                    url,
+                    HttpMethod.POST,
+                    requestEntity,
+                    StartExecutionResponse::class.java,
+                ).body ?: StartExecutionResponse(ExecutionEventType.ERROR, listOf("Could not fetch response"))
         return StartExecutionResponse(response.status, response.message)
     }
 
@@ -105,12 +106,13 @@ class RunnerClient(
         val headers = HttpHeaders()
         val requestEntity = HttpEntity<Void>(headers)
         val response =
-            restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                requestEntity,
-                StartExecutionResponse::class.java,
-            ).body ?: StartExecutionResponse(ExecutionEventType.ERROR, listOf("Could not fetch status"))
+            restTemplate
+                .exchange(
+                    url,
+                    HttpMethod.GET,
+                    requestEntity,
+                    StartExecutionResponse::class.java,
+                ).body ?: StartExecutionResponse(ExecutionEventType.ERROR, listOf("Could not fetch status"))
         return response
     }
 
@@ -138,12 +140,13 @@ class RunnerClient(
                 HttpHeaders(),
             )
         val response =
-            restTemplate.exchange(
-                url,
-                HttpMethod.POST,
-                requestEntity,
-                RunTestResponse::class.java,
-            ).body ?: RunTestResponse(
+            restTemplate
+                .exchange(
+                    url,
+                    HttpMethod.POST,
+                    requestEntity,
+                    RunTestResponse::class.java,
+                ).body ?: RunTestResponse(
                 emptyList(),
                 TestResult.ERROR,
                 "Error while receiving test",
@@ -252,12 +255,13 @@ class RunnerClient(
         val headers = HttpHeaders()
         val requestEntity = HttpEntity<Void>(headers)
         val response =
-            restTemplate.exchange(
-                url,
-                HttpMethod.PUT,
-                requestEntity,
-                String::class.java,
-            ).body ?: return "Error while $task snippet"
+            restTemplate
+                .exchange(
+                    url,
+                    HttpMethod.PUT,
+                    requestEntity,
+                    String::class.java,
+                ).body ?: return "Error while $task snippet"
         return response
     }
 

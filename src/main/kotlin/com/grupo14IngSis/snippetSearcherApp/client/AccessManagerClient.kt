@@ -91,7 +91,7 @@ class AccessManagerClient(
                 requestEntity,
                 GetPermissionsForUserResponse::class.java,
             )
-        return response.body
+        return response.body ?: GetPermissionsForUserResponse(userId, emptyList(), emptyList())
     }
 
     fun deletePermissionForSnippet(snippetId: String) {
