@@ -1,7 +1,7 @@
 # Multi-stage build
 
 # Stage 1: build
-FROM gradle:8.8-jdk21 AS build
+FROM gradle:8.14-jdk21 AS build
 WORKDIR /app
 COPY . .
 # Compile source code and generate .jar, except for task "test"
