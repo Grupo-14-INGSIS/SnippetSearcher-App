@@ -204,8 +204,8 @@ class SnippetController(
                     request.name,
                     request.language,
                     snippetId,
-                    description = request.description,
-                    version = request.version,
+                    description = request.description ?: "",
+                    version = request.version ?: "1.1",
                 ),
             )
         } catch (e: DataIntegrityViolationException) {
