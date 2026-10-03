@@ -40,6 +40,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestMethod
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.client.HttpClientErrorException
@@ -268,7 +269,7 @@ class SnippetController(
      *       ...
      *     }
      */
-    @GetMapping("/snippets/{snippetId}/permission")
+    @GetMapping(value = ["/snippets/{snippetId}/permissions", "/snippets/{snippetId}/permission"])
     @PreAuthorize("isAuthenticated()")
     fun getUsersWithPermission(
         authentication: Authentication,
@@ -292,17 +293,14 @@ class SnippetController(
     }
 
     /**
-     * PUT    /api/v1/snippets/{snippetId}/permission
+     * POST / PUT    /api/v1/snippets/{snippetId}/permissions
      *
      * Share a snippet with another user
-     *
-     * Request:
-     *
-     *     {
-     *       userId: {userId}
-     *     }
      */
-    @PutMapping("/snippets/{snippetId}/permission")
+    @RequestMapping(
+        value = ["/snippets/{snippetId}/permissions", "/snippets/{snippetId}/permission"],
+        method = [RequestMethod.POST, RequestMethod.PUT],
+    )
     @PreAuthorize("isAuthenticated()")
     fun shareSnippet(
         authentication: Authentication,
@@ -328,11 +326,11 @@ class SnippetController(
     }
 
     /**
-     * DELETE /api/v1/snippets/{snippetId}/permission/{userId}
+     * DELETE /api/v1/snippets/{snippetId}/permissions/{userId}
      *
      * Remove permission for another user
      */
-    @DeleteMapping("/snippets/{snippetId}/permission/{userId}")
+    @DeleteMapping(value = ["/snippets/{snippetId}/permissions/{userId}", "/snippets/{snippetId}/permission/{userId}"])
     @PreAuthorize("isAuthenticated()")
     fun removeSnippetPermission(
         authentication: Authentication,
@@ -349,11 +347,11 @@ class SnippetController(
     }
 
     /**
-     * PUT /api/v1/users
+     * POST / PUT /api/v1/users
      *
-     * Create a user
+     * Create or update a user
      */
-    @PutMapping("/users")
+    @RequestMapping(value = ["/users"], method = [RequestMethod.POST, RequestMethod.PUT])
     @PreAuthorize("isAuthenticated()")
     fun createUser(
         authentication: Authentication,
@@ -507,6 +505,7 @@ class SnippetController(
     }
 
     /**
+     * POST   /api/v1/snippets/{snippetId}/tests/{testId}/runs
      * PUT    /api/v1/snippets/{snippetId}/tests/{testId}
      *
      * Start execution of a test
@@ -519,7 +518,14 @@ class SnippetController(
      *       message: String
      *     }
      */
-    @PutMapping("/snippets/{snippetId}/tests/{testId}")
+    @RequestMapping(
+        value = [
+            "/snippets/{snippetId}/tests/{testId}/runs",
+            "/snippets/{snippetId}/tests/{testId}/run",
+            "/snippets/{snippetId}/tests/{testId}",
+        ],
+        method = [RequestMethod.POST, RequestMethod.PUT],
+    )
     @PreAuthorize("isAuthenticated()")
     fun runTest(
         authentication: Authentication,
@@ -586,7 +592,7 @@ class SnippetController(
      *       message: List<String>
      *     }
      */
-    @PostMapping("/snippets/{snippetId}/execution")
+    @PostMapping(value = ["/snippets/{snippetId}/executions", "/snippets/{snippetId}/execution", "/snippets/{snippetId}/run"])
     @PreAuthorize("isAuthenticated()")
     fun runSnippet(
         authentication: Authentication,
@@ -608,7 +614,7 @@ class SnippetController(
     }
 
     /**
-     * POST   /api/v1/snippets/{snippetId}/execution/input
+     * POST   /api/v1/snippets/{snippetId}/executions/input
      *
      * Send input to snippet execution
      *
@@ -618,7 +624,7 @@ class SnippetController(
      *       input: String
      *     }
      */
-    @PostMapping("/snippets/{snippetId}/execution/input")
+    @PostMapping(value = ["/snippets/{snippetId}/executions/input", "/snippets/{snippetId}/execution/input"])
     @PreAuthorize("isAuthenticated()")
     fun sendInput(
         authentication: Authentication,
@@ -638,7 +644,7 @@ class SnippetController(
         return ResponseEntity.noContent().build()
     }
 
-    @DeleteMapping("/snippets/{snippetId}/execution")
+    @DeleteMapping(value = ["/snippets/{snippetId}/executions", "/snippets/{snippetId}/execution"])
     @PreAuthorize("isAuthenticated()")
     fun cancelSnippetExecution(
         authentication: Authentication,
@@ -659,7 +665,7 @@ class SnippetController(
     }
 
     /**
-     * GET    /api/v1/snippets/{snippetId}/run/status
+     * GET    /api/v1/snippets/{snippetId}/executions/status
      *
      * Get the current status of a snippet execution.
      *
@@ -670,7 +676,9 @@ class SnippetController(
      *       message: List<String>
      *     }
      */
-    @GetMapping("/snippets/{snippetId}/run/status")
+    @GetMapping(
+        value = ["/snippets/{snippetId}/executions/status", "/snippets/{snippetId}/execution/status", "/snippets/{snippetId}/run/status"],
+    )
     @PreAuthorize("isAuthenticated()")
     fun getExecutionStatus(
         authentication: Authentication,
@@ -777,13 +785,13 @@ class SnippetController(
     }
 
     /**
-     * PUT /api/c1/snippets/{snippetId}/task/{task}
+     * PUT /api/v1/snippets/{snippetId}/tasks/{task}
      *
      * Apply a synchronous task to a snippet
      *
      * Returns the raw content of the processed snippet
      */
-    @PutMapping("/snippets/{snippetId}/task/{task}")
+    @PutMapping(value = ["/snippets/{snippetId}/tasks/{task}", "/snippets/{snippetId}/task/{task}"])
     fun synchronousTask(
         authentication: Authentication,
         @PathVariable snippetId: String,
