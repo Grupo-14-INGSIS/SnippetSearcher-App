@@ -21,17 +21,21 @@ class SecurityConfig {
             .cors { cors -> cors.configurationSource(corsConfigurationSource()) }
             .authorizeHttpRequests { authorize ->
                 authorize
-                    .requestMatchers("/api/v1/testing").permitAll()
-                    .requestMatchers("/api/v1/testing/separator").permitAll()
-                    .requestMatchers(HttpMethod.PUT, "/api/v1/snippets/*").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/v1/snippets/*").permitAll()
-                    .requestMatchers("/api/v1/**").authenticated()
-                    .anyRequest().permitAll()
-            }
-            .oauth2ResourceServer { oauth2 ->
+                    .requestMatchers("/api/v1/testing")
+                    .permitAll()
+                    .requestMatchers("/api/v1/testing/separator")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.PUT, "/api/v1/snippets/*")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/snippets/*")
+                    .permitAll()
+                    .requestMatchers("/api/v1/**")
+                    .authenticated()
+                    .anyRequest()
+                    .permitAll()
+            }.oauth2ResourceServer { oauth2 ->
                 oauth2.jwt {}
-            }
-            .csrf { csrf -> csrf.disable() }
+            }.csrf { csrf -> csrf.disable() }
         return http.build()
     }
 

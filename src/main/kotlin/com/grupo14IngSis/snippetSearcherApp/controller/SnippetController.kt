@@ -879,8 +879,8 @@ class SnippetController(
     fun printSeparator() {
         println(
             "###############################################################\n" +
-                    "# SEPARATOR SEPARATOR SEPARATOR SEPARATOR SEPARATOR SEPARATOR #\n" +
-                    "###############################################################",
+                "# SEPARATOR SEPARATOR SEPARATOR SEPARATOR SEPARATOR SEPARATOR #\n" +
+                "###############################################################",
         )
     }
 
