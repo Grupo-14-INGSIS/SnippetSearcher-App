@@ -67,29 +67,14 @@ class SnippetController(
         userId: String,
         snippetId: String,
     ): Int {
-        val cacheKey = "perm:$userId:$snippetId"
-        try {
-            val cached = redisTemplate.opsForValue().get(cacheKey)
-            if (cached != null) {
-                return when {
-                    cached.equals("owner", ignoreCase = true) -> ownerPermission
-                    cached.equals("shared", ignoreCase = true) -> sharedPermission
-                    else -> noPermission
-                }
-            }
-        } catch (_: Exception) {}
-
         val permission = accessManagerClient.getPermission(userId, snippetId) ?: return noPermission
-        val level = when {
+        return when {
             permission.role.equals("owner", ignoreCase = true) -> ownerPermission
             permission.role.equals("shared", ignoreCase = true) -> sharedPermission
             else -> noPermission
         }
-        try {
-            redisTemplate.opsForValue().set(cacheKey, permission.role, java.time.Duration.ofMinutes(5))
-        } catch (_: Exception) {}
-        return level
     }
+
 
     /**
      * GET /api/v1/snippets
@@ -276,9 +261,6 @@ class SnippetController(
         runnerClient.deleteSnippet("snippets", snippetId)
         snippetRepository.deleteById(snippetId)
         testRepository.deleteBySnippetId(snippetId)
-        try {
-            redisTemplate.delete("perm:$userId:$snippetId")
-        } catch (_: Exception) {}
         return ResponseEntity.ok().build()
     }
 
@@ -345,9 +327,6 @@ class SnippetController(
 
         try {
             accessManagerClient.postPermission(targetUser.userId, snippetId, "shared")
-            try {
-                redisTemplate.delete("perm:${targetUser.userId}:$snippetId")
-            } catch (_: Exception) {}
         } catch (e: HttpClientErrorException.BadRequest) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("User already has permission for this snippet.")
         }
@@ -372,9 +351,6 @@ class SnippetController(
             return ResponseEntity.status(401).build()
         }
         accessManagerClient.deletePermission(userId, snippetId)
-        try {
-            redisTemplate.delete("perm:$userId:$snippetId")
-        } catch (_: Exception) {}
         return ResponseEntity.ok().build()
     }
 
