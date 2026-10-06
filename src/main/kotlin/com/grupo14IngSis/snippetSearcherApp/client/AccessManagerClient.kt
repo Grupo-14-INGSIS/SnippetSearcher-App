@@ -4,6 +4,7 @@ import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForSnippetResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForUserResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.PostPermissionRequest
+import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
@@ -16,13 +17,21 @@ class AccessManagerClient(
     private val restTemplate: RestTemplate,
     @Value("\${app.accessmanager.url}") private val accessManagerUrl: String,
 ) {
+    private fun createHeaders(): HttpHeaders {
+        val headers = HttpHeaders()
+        val requestId = MDC.get("requestId")
+        if (!requestId.isNullOrBlank()) {
+            headers.set("X-Request-Id", requestId)
+        }
+        return headers
+    }
+
     fun getPermission(
         userId: String,
         snippetId: String,
     ): GetPermissionResponse? {
         val url = "$accessManagerUrl/permissions?userId=$userId&snippetId=$snippetId"
-        val headers = HttpHeaders()
-        val requestEntity = HttpEntity<Void>(headers)
+        val requestEntity = HttpEntity<Void>(createHeaders())
         val response =
             restTemplate.exchange(
                 url,
@@ -39,8 +48,7 @@ class AccessManagerClient(
         role: String,
     ): GetPermissionResponse? {
         val url = "$accessManagerUrl/permissions"
-        val headers = HttpHeaders()
-        val requestEntity = HttpEntity(PostPermissionRequest(userId, snippetId, role), headers)
+        val requestEntity = HttpEntity(PostPermissionRequest(userId, snippetId, role), createHeaders())
         val response =
             restTemplate.exchange<GetPermissionResponse>(
                 url,
@@ -56,8 +64,7 @@ class AccessManagerClient(
         snippetId: String,
     ) {
         val url = "$accessManagerUrl/permissions?userId=$userId&snippetId=$snippetId"
-        val headers = HttpHeaders()
-        val requestEntity = HttpEntity<Void>(headers)
+        val requestEntity = HttpEntity<Void>(createHeaders())
         restTemplate.exchange(
             url,
             HttpMethod.DELETE,
@@ -68,8 +75,7 @@ class AccessManagerClient(
 
     fun getPermissionsForSnippet(snippetId: String): GetPermissionsForSnippetResponse? {
         val url = "$accessManagerUrl/permissions?snippetId=$snippetId"
-        val headers = HttpHeaders()
-        val requestEntity = HttpEntity<Void>(headers)
+        val requestEntity = HttpEntity<Void>(createHeaders())
         val response =
             restTemplate.exchange(
                 url,
@@ -82,8 +88,7 @@ class AccessManagerClient(
 
     fun getPermissionsForUser(userId: String): GetPermissionsForUserResponse? {
         val url = "$accessManagerUrl/permissions?userId=$userId"
-        val headers = HttpHeaders()
-        val requestEntity = HttpEntity<Void>(headers)
+        val requestEntity = HttpEntity<Void>(createHeaders())
         val response =
             restTemplate.exchange(
                 url,
@@ -91,13 +96,12 @@ class AccessManagerClient(
                 requestEntity,
                 GetPermissionsForUserResponse::class.java,
             )
-        return response.body
+        return response.body ?: GetPermissionsForUserResponse(userId, emptyList(), emptyList())
     }
 
     fun deletePermissionForSnippet(snippetId: String) {
         val url = "$accessManagerUrl/permissions?snippetId=$snippetId"
-        val headers = HttpHeaders()
-        val requestEntity = HttpEntity<Void>(headers)
+        val requestEntity = HttpEntity<Void>(createHeaders())
         restTemplate.exchange(
             url,
             HttpMethod.DELETE,
@@ -108,8 +112,7 @@ class AccessManagerClient(
 
     fun deletePermissionForUser(userId: String) {
         val url = "$accessManagerUrl/permissions?userId=$userId"
-        val headers = HttpHeaders()
-        val requestEntity = HttpEntity<Void>(headers)
+        val requestEntity = HttpEntity<Void>(createHeaders())
         restTemplate.exchange(
             url,
             HttpMethod.DELETE,

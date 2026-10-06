@@ -40,6 +40,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestMethod
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.client.HttpClientErrorException
@@ -66,12 +67,28 @@ class SnippetController(
         userId: String,
         snippetId: String,
     ): Int {
+        val cacheKey = "perm:$userId:$snippetId"
+        try {
+            val cached = redisTemplate.opsForValue().get(cacheKey)
+            if (cached != null) {
+                return when {
+                    cached.equals("owner", ignoreCase = true) -> ownerPermission
+                    cached.equals("shared", ignoreCase = true) -> sharedPermission
+                    else -> noPermission
+                }
+            }
+        } catch (_: Exception) {}
+
         val permission = accessManagerClient.getPermission(userId, snippetId) ?: return noPermission
-        return when {
-            permission.role.lowercase() == "owner" -> ownerPermission
-            permission.role.uppercase() == "shared" -> sharedPermission
+        val level = when {
+            permission.role.equals("owner", ignoreCase = true) -> ownerPermission
+            permission.role.equals("shared", ignoreCase = true) -> sharedPermission
             else -> noPermission
         }
+        try {
+            redisTemplate.opsForValue().set(cacheKey, permission.role, java.time.Duration.ofMinutes(5))
+        } catch (_: Exception) {}
+        return level
     }
 
     /**
@@ -106,13 +123,14 @@ class SnippetController(
         snippetPermissions.owned.forEach {
             val snippet = snippetRepository.findById(it).orElse(null)
             if (snippet != null) {
-                output[it] = SnippetPermissionData(
-                    snippet.name,
-                    snippet.language,
-                    "owner",
-                    compliance = snippet.compliance,
-                    status = snippet.compliance,
-                )
+                output[it] =
+                    SnippetPermissionData(
+                        snippet.name,
+                        snippet.language,
+                        "owner",
+                        compliance = snippet.compliance,
+                        status = snippet.compliance,
+                    )
             }
         }
         snippetPermissions.shared.forEach {
@@ -125,13 +143,14 @@ class SnippetController(
                 }
             }
             if (snippet != null) {
-                output[it] = SnippetPermissionData(
-                    snippet.name,
-                    snippet.language,
-                    "shared",
-                    compliance = snippet.compliance,
-                    status = snippet.compliance,
-                )
+                output[it] =
+                    SnippetPermissionData(
+                        snippet.name,
+                        snippet.language,
+                        "shared",
+                        compliance = snippet.compliance,
+                        status = snippet.compliance,
+                    )
             }
         }
         return ResponseEntity.ok().body(output)
@@ -140,30 +159,38 @@ class SnippetController(
     /**
      * GET    /api/v1/snippets/{snippetId}
      *
-     * Get metadata associated with the snippet
+     * Get metadata and content associated with the snippet (BFF pattern)
      *
      * Response:
      *
      *     {
      *         snippetId: String,
      *         name: String,
-     *         language: String
+     *         language: String,
+     *         content: String
      *     }
      */
     @GetMapping("/snippets/{snippetId}")
     fun getSnippetData(
         @PathVariable snippetId: String,
     ): ResponseEntity<SnippetData> {
-        val snippet = snippetRepository.findById(snippetId).get()
-        val response = SnippetData(
-            snippetId = snippet.snippetId,
-            name = snippet.name,
-            language = snippet.language,
-            compliance = snippet.compliance,
-            status = snippet.compliance,
-            description = snippet.description,
-            version = snippet.version,
-        )
+        val snippetOptional = snippetRepository.findById(snippetId)
+        if (snippetOptional.isEmpty) {
+            return ResponseEntity.notFound().build()
+        }
+        val snippet = snippetOptional.get()
+        val content = runnerClient.getSnippetContent(snippetId)
+        val response =
+            SnippetData(
+                snippetId = snippet.snippetId,
+                name = snippet.name,
+                language = snippet.language,
+                compliance = snippet.compliance,
+                status = snippet.compliance,
+                description = snippet.description,
+                version = snippet.version,
+                content = content,
+            )
         return ResponseEntity.ok().body(response)
     }
 
@@ -201,8 +228,8 @@ class SnippetController(
                     request.name,
                     request.language,
                     snippetId,
-                    description = request.description,
-                    version = request.version,
+                    description = request.description ?: "",
+                    version = request.version ?: "1.1",
                 ),
             )
         } catch (e: DataIntegrityViolationException) {
@@ -249,6 +276,9 @@ class SnippetController(
         runnerClient.deleteSnippet("snippets", snippetId)
         snippetRepository.deleteById(snippetId)
         testRepository.deleteBySnippetId(snippetId)
+        try {
+            redisTemplate.delete("perm:$userId:$snippetId")
+        } catch (_: Exception) {}
         return ResponseEntity.ok().build()
     }
 
@@ -265,7 +295,7 @@ class SnippetController(
      *       ...
      *     }
      */
-    @GetMapping("/snippets/{snippetId}/permission")
+    @GetMapping(value = ["/snippets/{snippetId}/permissions", "/snippets/{snippetId}/permission"])
     @PreAuthorize("isAuthenticated()")
     fun getUsersWithPermission(
         authentication: Authentication,
@@ -289,17 +319,14 @@ class SnippetController(
     }
 
     /**
-     * PUT    /api/v1/snippets/{snippetId}/permission
+     * POST / PUT    /api/v1/snippets/{snippetId}/permissions
      *
      * Share a snippet with another user
-     *
-     * Request:
-     *
-     *     {
-     *       userId: {userId}
-     *     }
      */
-    @PutMapping("/snippets/{snippetId}/permission")
+    @RequestMapping(
+        value = ["/snippets/{snippetId}/permissions", "/snippets/{snippetId}/permission"],
+        method = [RequestMethod.POST, RequestMethod.PUT],
+    )
     @PreAuthorize("isAuthenticated()")
     fun shareSnippet(
         authentication: Authentication,
@@ -312,11 +339,15 @@ class SnippetController(
             return ResponseEntity.status(401).build()
         }
 
-        val targetUser = userDataRepository.findByUserName(snippetData.userId)
-            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User with email ${snippetData.userId} not found.")
+        val targetUser =
+            userDataRepository.findByUserName(snippetData.userId)
+                ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User with email ${snippetData.userId} not found.")
 
         try {
             accessManagerClient.postPermission(targetUser.userId, snippetId, "shared")
+            try {
+                redisTemplate.delete("perm:${targetUser.userId}:$snippetId")
+            } catch (_: Exception) {}
         } catch (e: HttpClientErrorException.BadRequest) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("User already has permission for this snippet.")
         }
@@ -324,11 +355,11 @@ class SnippetController(
     }
 
     /**
-     * DELETE /api/v1/snippets/{snippetId}/permission/{userId}
+     * DELETE /api/v1/snippets/{snippetId}/permissions/{userId}
      *
      * Remove permission for another user
      */
-    @DeleteMapping("/snippets/{snippetId}/permission/{userId}")
+    @DeleteMapping(value = ["/snippets/{snippetId}/permissions/{userId}", "/snippets/{snippetId}/permission/{userId}"])
     @PreAuthorize("isAuthenticated()")
     fun removeSnippetPermission(
         authentication: Authentication,
@@ -341,20 +372,31 @@ class SnippetController(
             return ResponseEntity.status(401).build()
         }
         accessManagerClient.deletePermission(userId, snippetId)
+        try {
+            redisTemplate.delete("perm:$userId:$snippetId")
+        } catch (_: Exception) {}
         return ResponseEntity.ok().build()
     }
 
     /**
-     * PUT /api/v1/users
+     * POST / PUT /api/v1/users
      *
-     * Create a user
+     * Create or update a user
      */
-    @PutMapping("/users")
+    @RequestMapping(value = ["/users"], method = [RequestMethod.POST, RequestMethod.PUT])
     @PreAuthorize("isAuthenticated()")
-    fun createUser(authentication: Authentication, @RequestBody(required = false) body: Map<String, String>?): ResponseEntity<Any> {
+    fun createUser(
+        authentication: Authentication,
+        @RequestBody(required = false) body: Map<String, String>?,
+    ): ResponseEntity<Any> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
-        val userName = body?.get("email") ?: jwt.getClaimAsString("email") ?: jwt.getClaimAsString("nickname") ?: jwt.getClaimAsString("name") ?: "Unknown User"
+        val userName =
+            body?.get("email")
+                ?: jwt.getClaimAsString("email")
+                ?: jwt.getClaimAsString("nickname")
+                ?: jwt.getClaimAsString("name")
+                ?: "Unknown User"
 
         userDataRepository.save(UserData(userId, userName))
         try {
@@ -400,11 +442,12 @@ class SnippetController(
         @RequestParam(required = false) name: String?,
     ): ResponseEntity<List<Map<String, String>>> {
         val allUsers = userDataRepository.findAll()
-        val filtered = if (!name.isNullOrBlank()) {
-            allUsers.filter { it.userName.contains(name, ignoreCase = true) }
-        } else {
-            allUsers
-        }
+        val filtered =
+            if (!name.isNullOrBlank()) {
+                allUsers.filter { it.userName.contains(name, ignoreCase = true) }
+            } else {
+                allUsers
+            }
         val result = filtered.map { mapOf("id" to it.userId, "name" to it.userName) }
         return ResponseEntity.ok(result)
     }
@@ -494,6 +537,7 @@ class SnippetController(
     }
 
     /**
+     * POST   /api/v1/snippets/{snippetId}/tests/{testId}/runs
      * PUT    /api/v1/snippets/{snippetId}/tests/{testId}
      *
      * Start execution of a test
@@ -506,7 +550,14 @@ class SnippetController(
      *       message: String
      *     }
      */
-    @PutMapping("/snippets/{snippetId}/tests/{testId}")
+    @RequestMapping(
+        value = [
+            "/snippets/{snippetId}/tests/{testId}/runs",
+            "/snippets/{snippetId}/tests/{testId}/run",
+            "/snippets/{snippetId}/tests/{testId}",
+        ],
+        method = [RequestMethod.POST, RequestMethod.PUT],
+    )
     @PreAuthorize("isAuthenticated()")
     fun runTest(
         authentication: Authentication,
@@ -518,8 +569,9 @@ class SnippetController(
         if (getAuthorization(userId, snippetId) < sharedPermission) {
             return ResponseEntity.status(401).build()
         }
-        val test = testRepository.findById(testId).orElse(null)
-            ?: return ResponseEntity.notFound().build()
+        val test =
+            testRepository.findById(testId).orElse(null)
+                ?: return ResponseEntity.notFound().build()
         val result =
             runnerClient.runTest(
                 snippetId,
@@ -572,7 +624,7 @@ class SnippetController(
      *       message: List<String>
      *     }
      */
-    @PostMapping("/snippets/{snippetId}/execution")
+    @PostMapping(value = ["/snippets/{snippetId}/executions", "/snippets/{snippetId}/execution", "/snippets/{snippetId}/run"])
     @PreAuthorize("isAuthenticated()")
     fun runSnippet(
         authentication: Authentication,
@@ -594,7 +646,7 @@ class SnippetController(
     }
 
     /**
-     * POST   /api/v1/snippets/{snippetId}/execution/input
+     * POST   /api/v1/snippets/{snippetId}/executions/input
      *
      * Send input to snippet execution
      *
@@ -604,7 +656,7 @@ class SnippetController(
      *       input: String
      *     }
      */
-    @PostMapping("/snippets/{snippetId}/execution/input")
+    @PostMapping(value = ["/snippets/{snippetId}/executions/input", "/snippets/{snippetId}/execution/input"])
     @PreAuthorize("isAuthenticated()")
     fun sendInput(
         authentication: Authentication,
@@ -624,7 +676,7 @@ class SnippetController(
         return ResponseEntity.noContent().build()
     }
 
-    @DeleteMapping("/snippets/{snippetId}/execution")
+    @DeleteMapping(value = ["/snippets/{snippetId}/executions", "/snippets/{snippetId}/execution"])
     @PreAuthorize("isAuthenticated()")
     fun cancelSnippetExecution(
         authentication: Authentication,
@@ -645,7 +697,7 @@ class SnippetController(
     }
 
     /**
-     * GET    /api/v1/snippets/{snippetId}/run/status
+     * GET    /api/v1/snippets/{snippetId}/executions/status
      *
      * Get the current status of a snippet execution.
      *
@@ -656,7 +708,9 @@ class SnippetController(
      *       message: List<String>
      *     }
      */
-    @GetMapping("/snippets/{snippetId}/run/status")
+    @GetMapping(
+        value = ["/snippets/{snippetId}/executions/status", "/snippets/{snippetId}/execution/status", "/snippets/{snippetId}/run/status"],
+    )
     @PreAuthorize("isAuthenticated()")
     fun getExecutionStatus(
         authentication: Authentication,
@@ -763,13 +817,13 @@ class SnippetController(
     }
 
     /**
-     * PUT /api/c1/snippets/{snippetId}/task/{task}
+     * PUT /api/v1/snippets/{snippetId}/tasks/{task}
      *
      * Apply a synchronous task to a snippet
      *
      * Returns the raw content of the processed snippet
      */
-    @PutMapping("/snippets/{snippetId}/task/{task}")
+    @PutMapping(value = ["/snippets/{snippetId}/tasks/{task}", "/snippets/{snippetId}/task/{task}"])
     fun synchronousTask(
         authentication: Authentication,
         @PathVariable snippetId: String,
@@ -805,7 +859,7 @@ class SnippetController(
         authentication: Authentication,
         @RequestParam task: String,
         @RequestParam language: String,
-    ): ResponseEntity<Map<String, Any>?> {
+    ): ResponseEntity<Map<String, Any>> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
         try {

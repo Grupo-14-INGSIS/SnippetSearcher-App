@@ -8,4 +8,5 @@ data class SnippetData(
     val status: String? = null,
     val description: String? = null,
     val version: String? = null,
+    val content: String? = null,
 )
