@@ -54,12 +54,13 @@ class RunnerClient(
         userId: String,
         version: String,
         environment: Map<String, String>,
+        inputs: List<String> = emptyList(),
     ): StartExecutionResponse {
         val url = "$runnerUrl/snippets/$snippetId/executions"
         val headers = HttpHeaders()
         val requestEntity =
             HttpEntity<SnippetExecutionRunnerRequest>(
-                SnippetExecutionRunnerRequest(userId, version, environment),
+                SnippetExecutionRunnerRequest(userId, version, environment, inputs),
                 headers,
             )
         val response =
@@ -111,8 +112,16 @@ class RunnerClient(
         )
     }
 
-    fun getExecutionStatus(snippetId: String): StartExecutionResponse {
-        val url = "$runnerUrl/snippets/$snippetId/executions/status"
+    fun getExecutionStatus(
+        snippetId: String,
+        userId: String? = null,
+    ): StartExecutionResponse {
+        val url =
+            if (userId != null) {
+                "$runnerUrl/snippets/$snippetId/executions/status?userId={userId}"
+            } else {
+                "$runnerUrl/snippets/$snippetId/executions/status"
+            }
         val headers = HttpHeaders()
         val requestEntity = HttpEntity<Void>(headers)
         val response =
@@ -122,6 +131,7 @@ class RunnerClient(
                     HttpMethod.GET,
                     requestEntity,
                     StartExecutionResponse::class.java,
+                    mapOf("userId" to (userId ?: "")),
                 ).body ?: StartExecutionResponse(ExecutionEventType.ERROR, listOf("Could not fetch status"))
         return response
     }
@@ -275,22 +285,25 @@ class RunnerClient(
         return response
     }
 
-    fun getSnippetData(snippetId: String): SnippetData? {
-        val url = "$runnerUrl/snippets/$snippetId"
-        val headers = createHeaders()
-        val requestEntity = HttpEntity<Void>(headers)
-        val response =
-            restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                requestEntity,
-                SnippetData::class.java,
-            )
-        return response.body
-    }
+    fun getSnippetData(snippetId: String): SnippetData? =
+        try {
+            val url = "$runnerUrl/snippets/$snippetId"
+            val headers = createHeaders()
+            val requestEntity = HttpEntity<Void>(headers)
+            val response =
+                restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    requestEntity,
+                    SnippetData::class.java,
+                )
+            response.body
+        } catch (_: Exception) {
+            null
+        }
 
-    fun getSnippetContent(snippetId: String): String? {
-        return try {
+    fun getSnippetContent(snippetId: String): String? =
+        try {
             val url = "$runnerUrl/snippets/$snippetId"
             val response =
                 restTemplate.exchange(
@@ -303,5 +316,4 @@ class RunnerClient(
         } catch (_: Exception) {
             null
         }
-    }
 }

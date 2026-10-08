@@ -10,6 +10,7 @@ import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForSnippetResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForUserResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.RunTestResponse
+import com.grupo14IngSis.snippetSearcherApp.dto.SnippetData
 import com.grupo14IngSis.snippetSearcherApp.dto.StartExecutionResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.TestResult
 import com.grupo14IngSis.snippetSearcherApp.repository.SnippetRepository
@@ -22,6 +23,8 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
 import org.springframework.context.annotation.Import
 import org.springframework.data.redis.core.RedisTemplate
+import org.springframework.http.HttpHeaders
+import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt
@@ -34,6 +37,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import org.springframework.web.client.HttpClientErrorException
 import java.util.Optional
 import com.grupo14IngSis.snippetSearcherApp.domain.Test as DomainTest
 
@@ -82,6 +86,138 @@ class SnippetControllerTest {
                 get("/api/v1/snippets")
                     .with(jwt().jwt { it.subject(userId) }),
             ).andExpect(status().isOk)
+    }
+
+    @Test
+    fun `getAllSnippets registers shared snippets missing in local db`() {
+        `when`(accessManagerClient.getPermissionsForUser(userId))
+            .thenReturn(GetPermissionsForUserResponse(userId, emptyList(), listOf("shared1", "missing")))
+        `when`(snippetRepository.findById("shared1")).thenReturn(Optional.empty())
+        `when`(snippetRepository.findById("missing")).thenReturn(Optional.empty())
+        `when`(runnerClient.getSnippetData("shared1"))
+            .thenReturn(SnippetData("shared1", "name", "printscript"))
+        `when`(runnerClient.getSnippetData("missing")).thenReturn(null)
+
+        mockMvc
+            .perform(
+                get("/api/v1/snippets")
+                    .with(jwt().jwt { it.subject(userId) }),
+            ).andExpect(status().isOk)
+    }
+
+    @Test
+    fun `deleteSnippet returns 401 when user is not owner`() {
+        `when`(accessManagerClient.getPermission(userId, "snippet1"))
+            .thenReturn(GetPermissionResponse("snippet1", userId, "shared"))
+
+        mockMvc
+            .perform(
+                delete("/api/v1/snippets/snippet1")
+                    .with(jwt().jwt { it.subject(userId) }),
+            ).andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `shareSnippet returns 404 when target user does not exist`() {
+        `when`(accessManagerClient.getPermission(userId, "snippet1"))
+            .thenReturn(GetPermissionResponse("snippet1", userId, "owner"))
+        `when`(userDataRepository.findByUserName("nobody")).thenReturn(null)
+
+        mockMvc
+            .perform(
+                post("/api/v1/snippets/snippet1/permissions")
+                    .with(jwt().jwt { it.subject(userId) })
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"userId":"nobody"}"""),
+            ).andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `shareSnippet returns 409 when already shared`() {
+        `when`(accessManagerClient.getPermission(userId, "snippet1"))
+            .thenReturn(GetPermissionResponse("snippet1", userId, "owner"))
+        `when`(userDataRepository.findByUserName("otherUser"))
+            .thenReturn(UserData("otherUserId", "otherUser"))
+        `when`(accessManagerClient.postPermission("otherUserId", "snippet1", "shared"))
+            .thenThrow(HttpClientErrorException.create(HttpStatus.BAD_REQUEST, "bad", HttpHeaders(), ByteArray(0), null))
+
+        mockMvc
+            .perform(
+                post("/api/v1/snippets/snippet1/permissions")
+                    .with(jwt().jwt { it.subject(userId) })
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"userId":"otherUser"}"""),
+            ).andExpect(status().isConflict)
+    }
+
+    @Test
+    fun `getRules registers user in runner when rules are missing`() {
+        `when`(runnerClient.getRules(userId, "formatting", "printscript"))
+            .thenThrow(HttpClientErrorException.create(HttpStatus.NOT_FOUND, "nf", HttpHeaders(), ByteArray(0), null))
+            .thenReturn(mapOf("rule1" to true))
+
+        mockMvc
+            .perform(
+                get("/api/v1/rules")
+                    .with(jwt().jwt { it.subject(userId) })
+                    .param("task", "formatting")
+                    .param("language", "printscript"),
+            ).andExpect(status().isOk)
+    }
+
+    @Test
+    fun `updateRules publishes tasks when applyToSnippets is true`() {
+        `when`(accessManagerClient.getPermissionsForUser(userId))
+            .thenReturn(GetPermissionsForUserResponse(userId, listOf("s1"), emptyList()))
+
+        mockMvc
+            .perform(
+                put("/api/v1/rules")
+                    .with(jwt().jwt { it.subject(userId) })
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"task":"formatting","language":"printscript","rules":{"rule1":true},"applyToSnippets":true}"""),
+            ).andExpect(status().isOk)
+    }
+
+    @Test
+    fun `updateSnippetStatus handles formatting task and missing snippet`() {
+        `when`(snippetRepository.findById("snippet1"))
+            .thenReturn(Optional.of(Snippet("snippet1", "testSnippet", "kotlin", "snippet1")))
+        `when`(snippetRepository.findById("missing")).thenReturn(Optional.empty())
+
+        mockMvc
+            .perform(
+                patch("/api/v1/snippets/snippet1/status")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"task":"formatting","status":false}"""),
+            ).andExpect(status().isOk)
+        mockMvc
+            .perform(
+                patch("/api/v1/snippets/snippet1/status")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"task":"linting","status":false}"""),
+            ).andExpect(status().isOk)
+        mockMvc
+            .perform(
+                patch("/api/v1/snippets/missing/status")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"task":"linting","status":true}"""),
+            ).andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `getSnippetData returns 404 when snippet is missing`() {
+        `when`(snippetRepository.findById("missing")).thenReturn(Optional.empty())
+
+        mockMvc
+            .perform(get("/api/v1/snippets/missing"))
+            .andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `testing endpoints return 200`() {
+        mockMvc.perform(post("/api/v1/testing/separator")).andExpect(status().isOk)
+        mockMvc.perform(post("/api/v1/testing")).andExpect(status().isOk)
     }
 
     @Test
@@ -257,7 +393,7 @@ class SnippetControllerTest {
             .thenReturn(GetPermissionResponse("snippet1", userId, "owner"))
         `when`(snippetRepository.findById("snippet1"))
             .thenReturn(Optional.of(Snippet("snippet1", "testSnippet", "kotlin", "snippet1")))
-        `when`(runnerClient.runSnippet("snippet1", userId, "1.1", emptyMap()))
+        `when`(runnerClient.runSnippet("snippet1", userId, "1.1", emptyMap(), emptyList()))
             .thenReturn(StartExecutionResponse(ExecutionEventType.COMPLETED, listOf("hello")))
 
         mockMvc
@@ -307,7 +443,7 @@ class SnippetControllerTest {
             .thenReturn(GetPermissionResponse("snippet1", userId, "owner"))
         `when`(snippetRepository.findById("snippet1"))
             .thenReturn(Optional.of(Snippet("snippet1", "testSnippet", "kotlin", "snippet1")))
-        `when`(runnerClient.getExecutionStatus("snippet1"))
+        `when`(runnerClient.getExecutionStatus("snippet1", userId))
             .thenReturn(StartExecutionResponse(ExecutionEventType.COMPLETED, listOf("done")))
 
         mockMvc

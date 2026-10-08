@@ -29,6 +29,9 @@ class SecurityConfig {
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/v1/snippets/*")
                     .permitAll()
+                    // Runner (sin JWT) reporta el resultado del linteo/formateo asincrónico
+                    .requestMatchers(HttpMethod.PATCH, "/api/v1/snippets/*/status")
+                    .permitAll()
                     .requestMatchers("/api/v1/**")
                     .authenticated()
                     .anyRequest()

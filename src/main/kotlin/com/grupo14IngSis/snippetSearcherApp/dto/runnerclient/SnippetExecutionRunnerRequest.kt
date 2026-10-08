@@ -4,4 +4,5 @@ data class SnippetExecutionRunnerRequest(
     val userId: String,
     val version: String,
     val environment: Map<String, String>,
+    val inputs: List<String> = emptyList(),
 )

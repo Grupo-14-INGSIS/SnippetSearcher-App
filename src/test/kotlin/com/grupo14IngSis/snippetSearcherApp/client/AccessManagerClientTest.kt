@@ -3,6 +3,7 @@ package com.grupo14IngSis.snippetSearcherApp.client
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.grupo14IngSis.snippetSearcherApp.config.RestTemplateConfig
 import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionResponse
+import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForSnippetResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForUserResponse
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
@@ -10,9 +11,11 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.restclient.test.autoconfigure.RestClientTest
 import org.springframework.context.annotation.Import
+import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
 import org.springframework.test.context.TestPropertySource
 import org.springframework.test.web.client.MockRestServiceServer
+import org.springframework.test.web.client.match.MockRestRequestMatchers.method
 import org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
 import org.springframework.test.web.client.response.MockRestResponseCreators.withNoContent
 import org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
@@ -75,6 +78,48 @@ class AccessManagerClientTest {
             )
 
         assertEquals(expectedResponse, actualResponse)
+    }
+
+    @Test
+    fun `getPermission should return permission for user and snippet`() {
+        val expectedResponse = GetPermissionResponse(userId = "u1", snippetId = "s1", role = "owner")
+        server
+            .expect(requestTo("http://localhost/permissions?userId=u1&snippetId=s1"))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(expectedResponse), MediaType.APPLICATION_JSON))
+
+        assertEquals(expectedResponse, client.getPermission("u1", "s1"))
+    }
+
+    @Test
+    fun `getPermissionsForSnippet should return owner and shared users`() {
+        val expectedResponse = GetPermissionsForSnippetResponse(snippetId = "s1", ownerId = "u1", shared = listOf("u2"))
+        server
+            .expect(requestTo("http://localhost/permissions?snippetId=s1"))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(expectedResponse), MediaType.APPLICATION_JSON))
+
+        assertEquals(expectedResponse, client.getPermissionsForSnippet("s1"))
+    }
+
+    @Test
+    fun `delete methods should call access manager with DELETE`() {
+        server
+            .expect(requestTo("http://localhost/permissions?userId=u1&snippetId=s1"))
+            .andExpect(method(HttpMethod.DELETE))
+            .andRespond(withNoContent())
+        server
+            .expect(requestTo("http://localhost/permissions?snippetId=s1"))
+            .andExpect(method(HttpMethod.DELETE))
+            .andRespond(withNoContent())
+        server
+            .expect(requestTo("http://localhost/permissions?userId=u1"))
+            .andExpect(method(HttpMethod.DELETE))
+            .andRespond(withNoContent())
+
+        client.deletePermission("u1", "s1")
+        client.deletePermissionForSnippet("s1")
+        client.deletePermissionForUser("u1")
+
+        server.verify()
     }
 
     @Test

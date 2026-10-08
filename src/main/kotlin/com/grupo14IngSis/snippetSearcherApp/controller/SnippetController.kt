@@ -75,7 +75,6 @@ class SnippetController(
         }
     }
 
-
     /**
      * GET /api/v1/snippets
      *
@@ -258,7 +257,12 @@ class SnippetController(
             return ResponseEntity.status(401).build()
         }
         accessManagerClient.deletePermissionForSnippet(snippetId)
-        runnerClient.deleteSnippet("snippets", snippetId)
+        try {
+            runnerClient.deleteSnippet("snippets", snippetId)
+        } catch (e: Exception) {
+            // Si el contenido nunca llegó al asset service (404) igual queremos borrar el snippet
+            logger.warn("Could not delete snippet content for $snippetId in Runner: ${e.message}")
+        }
         snippetRepository.deleteById(snippetId)
         testRepository.deleteBySnippetId(snippetId)
         return ResponseEntity.ok().build()
@@ -294,8 +298,8 @@ class SnippetController(
         val shared = users.shared
         val userList = mutableListOf<Map<String, String>>()
         for (user in shared) {
-            val userData = userDataRepository.findById(user).get()
-            userList.add(mapOf("id" to userData.userId, "email" to userData.userName))
+            val userData = userDataRepository.findById(user).orElse(null)
+            userList.add(mapOf("id" to user, "email" to (userData?.userName ?: user)))
         }
         return ResponseEntity.ok(userList)
     }
@@ -378,7 +382,7 @@ class SnippetController(
         try {
             runnerClient.createUser(userId)
         } catch (e: Exception) {
-            logger.warn("El usuario ya existe en el Runner o hubo un error, ignorando: \${e.message}")
+            logger.warn("El usuario ya existe en el Runner o hubo un error, ignorando: ${e.message}")
         }
         return ResponseEntity.ok().build()
     }
@@ -616,7 +620,7 @@ class SnippetController(
         if (snippet.isEmpty) {
             return ResponseEntity.notFound().build()
         }
-        val output = runnerClient.runSnippet(snippetId, userId, request.version, request.environment)
+        val output = runnerClient.runSnippet(snippetId, userId, request.version, request.environment, request.inputs)
 
         return ResponseEntity.ok().body(output)
     }
@@ -701,7 +705,7 @@ class SnippetController(
         if (snippet.isEmpty) {
             return ResponseEntity.notFound().build()
         }
-        val output = runnerClient.getExecutionStatus(snippetId)
+        val output = runnerClient.getExecutionStatus(snippetId, userId)
         return ResponseEntity.ok().body(output)
     }
 

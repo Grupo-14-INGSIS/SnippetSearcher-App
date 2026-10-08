@@ -65,21 +65,40 @@ jacoco {
     toolVersion = "0.8.11"
 }
 
+// Mismo criterio que en SnippetSearcher-Runner: no se mide cobertura de DTOs,
+// configuración de Spring ni de la clase main.
+def jacocoExclusions = [
+        '**/dto/**',
+        '**/config/**',
+        '**/SnippetSearcherApp*',
+]
+
 jacocoTestReport {
     dependsOn test
     reports {
         xml.required = true
         html.required = true
     }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExclusions)
+        }))
+    }
 }
 
 jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport
     violationRules {
         rule {
             limit {
                 minimum = 0.8
             }
         }
+    }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExclusions)
+        }))
     }
 }
 
