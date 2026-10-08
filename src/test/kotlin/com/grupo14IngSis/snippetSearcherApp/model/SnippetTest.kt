@@ -1,35 +1,33 @@
 package com.grupo14IngSis.snippetSearcherApp.model
 
+import com.grupo14IngSis.snippetSearcherApp.domain.Snippet
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-class SnippetTest
-/*{
+class SnippetTest {
     @Test
     fun `Snippet should have correct properties`() {
-        val id = 1L
-        val name = "sname"
-        val description = "sdescription"
-        val language = "kotlin"
-        val version = "1.0"
-        val code = "scode"
-
         val snippet =
             Snippet(
-                id = id,
-                name = name,
-                description = description,
-                language = language,
-                version = version,
-                code = code,
+                snippetId = "s1",
+                name = "sname",
+                language = "kotlin",
+                bucketId = "s1",
+                formatterApplied = true,
+                linterApplied = true,
+                compliance = "compliant",
+                description = "sdescription",
+                version = "1.1",
             )
 
-        assertEquals(id, snippet.id)
-        assertEquals(name, snippet.name)
-        assertEquals(description, snippet.description)
-        assertEquals(language, snippet.language)
-        assertEquals(version, snippet.version)
-        assertEquals(code, snippet.code)
+        assertEquals("s1", snippet.snippetId)
+        assertEquals("sname", snippet.name)
+        assertEquals("kotlin", snippet.language)
+        assertEquals("s1", snippet.bucketId)
+        assertEquals(true, snippet.formatterApplied)
+        assertEquals(true, snippet.linterApplied)
+        assertEquals("compliant", snippet.compliance)
+        assertEquals("sdescription", snippet.description)
+        assertEquals("1.1", snippet.version)
     }
 }
-*/

@@ -1,7 +1,7 @@
 # Multi-stage build
 
 # Stage 1: build
-FROM gradle:8.8-jdk21 AS build
+FROM gradle:8.14-jdk21 AS build
 WORKDIR /app
 COPY . .
 # Compile source code and generate .jar, except for task "test"
@@ -12,7 +12,8 @@ RUN gradle bootJar -x test
 # This generates a first image, containing the compiled .jar file
 
 # Stage 2: runtime
-FROM eclipse-temurin:21-jdk
+#es más liviano que el jdk pero suficiente para correr el jar
+FROM eclipse-temurin:21-jre
 WORKDIR /app
 # Copy .jar file from first image
 COPY --from=build /app/build/libs/*.jar app.jar

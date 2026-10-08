@@ -1,186 +1,287 @@
 package com.grupo14IngSis.snippetSearcherApp.client
 
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertThrows
+import com.grupo14IngSis.snippetSearcherApp.config.RestTemplateConfig
+import com.grupo14IngSis.snippetSearcherApp.dto.ExecutionEventType
+import com.grupo14IngSis.snippetSearcherApp.dto.TestResult
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertNotNull
-import org.mockito.ArgumentMatchers.any
-import org.mockito.ArgumentMatchers.anyString
-import org.mockito.ArgumentMatchers.eq
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.`when`
-import org.springframework.http.HttpEntity
-import org.springframework.http.HttpStatus
-import org.springframework.http.ResponseEntity
-import org.springframework.web.client.HttpClientErrorException
-import org.springframework.web.client.HttpServerErrorException
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.restclient.test.autoconfigure.RestClientTest
+import org.springframework.context.annotation.Import
+import org.springframework.http.HttpMethod
+import org.springframework.http.MediaType
+import org.springframework.test.context.TestPropertySource
+import org.springframework.test.web.client.MockRestServiceServer
+import org.springframework.test.web.client.match.MockRestRequestMatchers.content
+import org.springframework.test.web.client.match.MockRestRequestMatchers.method
+import org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
+import org.springframework.test.web.client.response.MockRestResponseCreators.withNoContent
+import org.springframework.test.web.client.response.MockRestResponseCreators.withServerError
+import org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
 import org.springframework.web.client.RestTemplate
-import kotlin.test.assertEquals
-/*
+
+@RestClientTest(RunnerClient::class)
+@Import(RestTemplateConfig::class)
+@TestPropertySource(properties = ["runner.service.url=http://localhost"])
 class RunnerClientTest {
-    private val restTemplate: RestTemplate = mock(RestTemplate::class.java)
-    private val client =
-        RunnerClient(restTemplate).apply {
-            this.runnerServiceUrl = "http://localhost"
-        }
+    @Autowired
+    private lateinit var client: RunnerClient
 
-    @Test
-    fun `executeSnippet returns outputs`() {
-        val response = ExecuteSnippetResponse(outputs = listOf("out1"))
-        `when`(
-            restTemplate.postForEntity(
-                anyString(),
-                any(HttpEntity::class.java),
-                eq(ExecuteSnippetResponse::class.java),
-            ),
-        ).thenReturn(ResponseEntity.ok(response))
+    @Autowired
+    private lateinit var restTemplate: RestTemplate
 
-        val result = client.executeSnippet("code", listOf("in"))
-        assertEquals(listOf("out1"), result)
+    private lateinit var server: MockRestServiceServer
+
+    private val base = "http://localhost/api/v1"
+
+    @BeforeEach
+    fun setUp() {
+        server = MockRestServiceServer.createServer(restTemplate)
     }
 
     @Test
-    fun `executeSnippet returns empty list when body is null`() {
-        `when`(
-            restTemplate.postForEntity(
-                anyString(),
-                any(HttpEntity::class.java),
-                eq(ExecuteSnippetResponse::class.java),
-            ),
-        ).thenReturn(ResponseEntity.ok(null))
+    fun `runSnippet should post execution request and return status`() {
+        server
+            .expect(requestTo("$base/snippets/s1/executions"))
+            .andExpect(method(HttpMethod.POST))
+            .andExpect(content().json("""{"userId":"u1","version":"1.1","environment":{},"inputs":["a"]}"""))
+            .andRespond(withSuccess("""{"status":"COMPLETED","message":["hello"]}""", MediaType.APPLICATION_JSON))
 
-        val result = client.executeSnippet("code", listOf("in"))
-        assertTrue(result.isEmpty())
+        val response = client.runSnippet("s1", "u1", "1.1", emptyMap(), listOf("a"))
+
+        assertEquals(ExecutionEventType.COMPLETED, response.status)
+        assertEquals(listOf("hello"), response.message)
+        server.verify()
     }
 
     @Test
-    fun `executeSnippet throws RunnerExecutionException on HttpClientErrorException`() {
-        val ex = HttpClientErrorException(HttpStatus.BAD_REQUEST, "Bad", null, "error".toByteArray(), null)
-        `when`(
-            restTemplate.postForEntity(
-                anyString(),
-                any(HttpEntity::class.java),
-                eq(ExecuteSnippetResponse::class.java),
-            ),
-        ).thenThrow(ex)
+    fun `runSnippet should return error when runner returns no body`() {
+        server
+            .expect(requestTo("$base/snippets/s1/executions"))
+            .andRespond(withNoContent())
 
-        val thrown =
-            assertThrows(RunnerExecutionException::class.java) {
-                client.executeSnippet("code", listOf())
-            }
-        assertTrue(thrown.message!!.contains("Error ejecutando snippet"))
+        val response = client.runSnippet("s1", "u1", "1.1", emptyMap())
+
+        assertEquals(ExecutionEventType.ERROR, response.status)
     }
 
     @Test
-    fun `executeSnippet throws RunnerExecutionException on HttpServerErrorException`() {
-        val ex = HttpServerErrorException(HttpStatus.INTERNAL_SERVER_ERROR, "Server", null, "serverErr".toByteArray(), null)
-        `when`(
-            restTemplate.postForEntity(
-                anyString(),
-                any(HttpEntity::class.java),
-                eq(ExecuteSnippetResponse::class.java),
-            ),
-        ).thenThrow(ex)
+    fun `sendInput should post to input endpoint`() {
+        server
+            .expect(requestTo("$base/snippets/s1/executions/input"))
+            .andExpect(method(HttpMethod.POST))
+            .andExpect(content().json("""{"userId":"u1","input":"42"}"""))
+            .andRespond(withNoContent())
 
-        val thrown =
-            assertThrows(RunnerExecutionException::class.java) {
-                client.executeSnippet("code", listOf())
-            }
-        assertTrue(thrown.message!!.contains("Error del servidor runner"))
+        client.sendInput("s1", "u1", "42")
+
+        server.verify()
     }
 
     @Test
-    fun `executeSnippet throws RunnerExecutionException on generic Exception`() {
-        `when`(
-            restTemplate.postForEntity(
-                anyString(),
-                any(HttpEntity::class.java),
-                eq(ExecuteSnippetResponse::class.java),
-            ),
-        ).thenThrow(RuntimeException("boom"))
+    fun `cancelExecution should delete execution`() {
+        server
+            .expect(requestTo("$base/snippets/s1/executions"))
+            .andExpect(method(HttpMethod.DELETE))
+            .andRespond(withNoContent())
 
-        val thrown =
-            assertThrows(RunnerExecutionException::class.java) {
-                client.executeSnippet("code", listOf())
-            }
-        assertTrue(thrown.message!!.contains("Error inesperado"))
+        client.cancelExecution("s1", "u1")
+
+        server.verify()
     }
 
     @Test
-    fun `validateSnippet returns valid result`() {
-        val response = ValidationResponse(isValid = true, errors = listOf())
-        `when`(
-            restTemplate.postForEntity(
-                anyString(),
-                any(HttpEntity::class.java),
-                eq(ValidationResponse::class.java),
-            ),
-        ).thenReturn(ResponseEntity.ok(response))
+    fun `getExecutionStatus should include userId and return status`() {
+        server
+            .expect(requestTo("$base/snippets/s1/executions/status?userId=u1"))
+            .andExpect(method(HttpMethod.GET))
+            .andRespond(withSuccess("""{"status":"WAITING","message":["line"]}""", MediaType.APPLICATION_JSON))
 
-        val result = client.validateSnippet("code")
-        assertTrue(result.isValid)
-        assertTrue(result.errors.isEmpty())
+        val response = client.getExecutionStatus("s1", "u1")
+
+        assertEquals(ExecutionEventType.WAITING, response.status)
+        assertEquals(listOf("line"), response.message)
     }
 
     @Test
-    fun `validateSnippet returns false when body is null`() {
-        `when`(
-            restTemplate.postForEntity(
-                anyString(),
-                any(HttpEntity::class.java),
-                eq(ValidationResponse::class.java),
-            ),
-        ).thenReturn(ResponseEntity.ok(null))
+    fun `getExecutionStatus without userId should return error on empty body`() {
+        server
+            .expect(requestTo("$base/snippets/s1/executions/status"))
+            .andRespond(withNoContent())
 
-        val result = client.validateSnippet("code")
-        assertFalse(result.isValid)
-        assertTrue(result.errors.isEmpty())
+        val response = client.getExecutionStatus("s1")
+
+        assertEquals(ExecutionEventType.ERROR, response.status)
     }
 
     @Test
-    fun `validateSnippet returns error result on exception`() {
-        `when`(
-            restTemplate.postForEntity(
-                anyString(),
-                any(HttpEntity::class.java),
-                eq(ValidationResponse::class.java),
-            ),
-        ).thenThrow(RuntimeException("fail"))
+    fun `runTest should post test request and return result`() {
+        server
+            .expect(requestTo("$base/testing"))
+            .andExpect(method(HttpMethod.POST))
+            .andRespond(
+                withSuccess("""{"actual":["1"],"result":"SUCCESS","message":"ok"}""", MediaType.APPLICATION_JSON),
+            )
 
-        val result = client.validateSnippet("code")
-        assertFalse(result.isValid)
-        assertTrue(result.errors[0].contains("Error validating snippet"))
+        val response = client.runTest("s1", "u1", "1.1", emptyMap(), listOf("in"), listOf("1"))
+
+        assertEquals(TestResult.SUCCESS, response.result)
+        assertEquals(listOf("1"), response.actual)
     }
 
     @Test
-    fun `DTOs equality and toString`() {
-        val req1 = ExecuteSnippetRequest("c", listOf("i"))
-        val req2 = ExecuteSnippetRequest("c", listOf("i"))
-        assertEquals(req1, req2)
-        assertEquals(req1.hashCode(), req2.hashCode())
-        assertTrue(req1.toString().contains("c"))
+    fun `runTest should return error when runner returns no body`() {
+        server
+            .expect(requestTo("$base/testing"))
+            .andRespond(withNoContent())
 
-        val resp = ExecuteSnippetResponse(listOf("o"))
-        assertEquals(listOf("o"), resp.outputs)
+        val response = client.runTest("s1", "u1", "1.1", emptyMap(), emptyList(), emptyList())
 
-        val valReq = ValidateSnippetRequest("c")
-        assertEquals("c", valReq.code)
-
-        val valResp = ValidationResponse(true, listOf("err"))
-        assertTrue(valResp.isValid)
-        assertEquals(listOf("err"), valResp.errors)
-
-        val valRes = ValidationResult(false, listOf("err"))
-        assertFalse(valRes.isValid)
-        assertEquals(listOf("err"), valRes.errors)
+        assertEquals(TestResult.ERROR, response.result)
     }
 
     @Test
-    fun `RunnerExecutionException works`() {
-        val ex = RunnerExecutionException("msg", RuntimeException("cause"))
-        assertEquals("msg", ex.message)
-        assertNotNull(ex.cause)
+    fun `getRules should return rules map`() {
+        server
+            .expect(requestTo("$base/users/u1/linting/rules/printscript"))
+            .andExpect(method(HttpMethod.GET))
+            .andRespond(withSuccess("""{"rule1":true,"rule2":3,"rule3":null}""", MediaType.APPLICATION_JSON))
+
+        val rules = client.getRules("u1", "linting", "printscript")
+
+        assertEquals(true, rules["rule1"])
+        assertEquals(3, rules["rule2"])
+        assertTrue(!rules.containsKey("rule3"))
+    }
+
+    @Test
+    fun `patchRules should send PATCH with rules`() {
+        server
+            .expect(requestTo("$base/users/u1/formatting/rules/printscript"))
+            .andExpect(method(HttpMethod.PATCH))
+            .andExpect(content().json("""{"rule1":false}"""))
+            .andRespond(withNoContent())
+
+        client.patchRules("u1", "formatting", "printscript", mapOf("rule1" to false))
+
+        server.verify()
+    }
+
+    @Test
+    fun `registerUser and createUser should PUT user`() {
+        server
+            .expect(requestTo("$base/users/u1"))
+            .andExpect(method(HttpMethod.PUT))
+            .andRespond(withSuccess())
+        server
+            .expect(requestTo("$base/users/u2"))
+            .andExpect(method(HttpMethod.PUT))
+            .andRespond(withSuccess())
+
+        client.registerUser("u1")
+        client.createUser("u2")
+
+        server.verify()
+    }
+
+    @Test
+    fun `deleteUser should DELETE user`() {
+        server
+            .expect(requestTo("$base/users/u1"))
+            .andExpect(method(HttpMethod.DELETE))
+            .andRespond(withNoContent())
+
+        client.deleteUser("u1")
+
+        server.verify()
+    }
+
+    @Test
+    fun `deleteSnippet should DELETE snippet`() {
+        server
+            .expect(requestTo("$base/snippets/s1"))
+            .andExpect(method(HttpMethod.DELETE))
+            .andRespond(withNoContent())
+
+        client.deleteSnippet("snippets", "s1")
+
+        server.verify()
+    }
+
+    @Test
+    fun `callTask should return processed snippet`() {
+        server
+            .expect(requestTo("$base/snippets/s1/tasks/format"))
+            .andExpect(method(HttpMethod.PUT))
+            .andRespond(withSuccess("formatted", MediaType.TEXT_PLAIN))
+
+        val result = client.callTask("s1", "format")
+
+        assertEquals("formatted", result)
+    }
+
+    @Test
+    fun `callTask should return error message when body is empty`() {
+        server
+            .expect(requestTo("$base/snippets/s1/tasks/lint"))
+            .andRespond(withNoContent())
+
+        val result = client.callTask("s1", "lint")
+
+        assertEquals("Error while lint snippet", result)
+    }
+
+    @Test
+    fun `getSnippetData should return data`() {
+        server
+            .expect(requestTo("$base/snippets/s1"))
+            .andRespond(
+                withSuccess(
+                    """{"snippetId":"s1","name":"n","language":"printscript","content":"println(1);"}""",
+                    MediaType.APPLICATION_JSON,
+                ),
+            )
+
+        val data = client.getSnippetData("s1")
+
+        assertEquals("s1", data?.snippetId)
+        assertEquals("println(1);", data?.content)
+    }
+
+    @Test
+    fun `getSnippetData should return null on error`() {
+        server
+            .expect(requestTo("$base/snippets/s1"))
+            .andRespond(withServerError())
+
+        assertNull(client.getSnippetData("s1"))
+    }
+
+    @Test
+    fun `getSnippetContent should return content`() {
+        server
+            .expect(requestTo("$base/snippets/s1"))
+            .andRespond(withSuccess("""{"snippetId":"s1","content":"println(1);"}""", MediaType.APPLICATION_JSON))
+
+        assertEquals("println(1);", client.getSnippetContent("s1"))
+    }
+
+    @Test
+    fun `getSnippetContent should return null on error`() {
+        server
+            .expect(requestTo("$base/snippets/s1"))
+            .andRespond(withServerError())
+
+        assertNull(client.getSnippetContent("s1"))
+    }
+
+    @Test
+    fun `toStringAnyMap should drop null values`() {
+        val result = client.toStringAnyMap(mapOf("a" to 1, "b" to null, 3 to "c"))
+
+        assertEquals(mapOf("a" to 1, "3" to "c"), result)
     }
 }
-*/
