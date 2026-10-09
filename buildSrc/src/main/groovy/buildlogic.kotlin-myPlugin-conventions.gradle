@@ -1,0 +1,43 @@
+plugins {
+    id 'org.jetbrains.kotlin.jvm'
+    id 'org.jlleitschuh.gradle.ktlint'
+    id 'io.gitlab.arturbosch.detekt'
+    id 'jacoco'
+}
+
+repositories {
+    mavenCentral()
+}
+
+// verificación de que nuestro plugin está activo
+project.gradle.taskGraph.whenReady {
+    project.logger.lifecycle(">>>>> myPlugin is working <<<<<")
+}
+
+project.afterEvaluate {
+    project.configurations.matching { it.name.startsWith("detekt") }.configureEach {
+        resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+            if (details.requested.group == 'org.jetbrains.kotlin') {
+                details.useVersion('2.0.21')
+            }
+        }
+    }
+}
+
+detekt {
+    toolVersion = "1.23.8"
+    if (file("${rootDir}/config/detekt/detekt.yml").exists()) {
+        config.setFrom(file("${rootDir}/config/detekt/detekt.yml"))
+    }
+    buildUponDefaultConfig = true
+}
+
+ktlint {
+    version = "1.4.0"
+}
+
+tasks.named("test") {
+    if (rootProject.tasks.findByName("installGitHook") != null) {
+        dependsOn(rootProject.tasks.named("installGitHook"))
+    }
+}

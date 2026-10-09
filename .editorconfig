@@ -1,0 +1,11 @@
+[*.{kt,kts}]
+indent_style = space
+indent_size = 4
+continuation_indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Reglas desactivadas que pueden causar conflictos de formateo
+ktlint_standard_no-consecutive-blank-lines = disabled
+ktlint_standard_import-ordering = disabled
+ktlint_standard_argument-list-wrapping = disabled

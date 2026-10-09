@@ -1,41 +1,45 @@
 #!/bin/bash
 
-set -e
-
-echo "Ejecutando ktlintFormat..."
-CHANGES_BEFORE=$(git diff --name-only)
+echo "Ejecutando ktlintFormat"
+CHANGES_BEFORE=$(git diff)
 ./gradlew ktlintFormat --quiet
-CHANGES_AFTER=$(git diff --name-only)
-
+CHANGES_AFTER=$(git diff)
 if [ "$CHANGES_BEFORE" != "$CHANGES_AFTER" ]; then
-        echo "Commit bloqueado: ktlintFormat modificó archivos. Se sugiere git diff > git add . > git commit si estás conforme con los cambios."
-        exit 1 # código de error
-fi
-
-echo "Ejecutando ktlintCheck..."
-./gradlew ktlintCheck --quiet
-STATUS=$?
-
-if [ $STATUS -ne 0 ]; then
-        echo "Commit bloqueado: errores de formato detectados por ktlint."
-        echo "Ejecuta './gradlew ktlintFormat' para corregir automáticamente."
+        echo "Commit bloqueado: ktlintFormat modificó archivos."
+        echo "Se sugiere git diff > git add . > git commit si estás conforme con los cambios."
         exit 1
+else
+        echo "No se modificaron archivos"
 fi
 
-echo "Ejecutando tests..."
-./gradlew test --continue > .git/test-output.log
-if grep -q "FAILED" .git/test-output.log; then
+echo ""
+echo "Ejecutando Detekt"
+if ! ./gradlew detekt; then
+        echo "Commit bloqueado: errores de calidad de código detectados por Detekt."
+        exit 1
+else
+        echo "No se detectaron errores de calidad"
+fi
+
+echo ""
+echo "Ejecutando tests"
+if ! ./gradlew test --continue > .git/test-output.log; then
         echo "Commit bloqueado: fallaron tests."
         cat .git/test-output.log | grep FAILED
         exit 1
+else
+        echo "Todos los tests fueron se ejecutaron con éxito"
 fi
 
-echo "Verificando cobertura de código (mínimo 80%)..."
-#./gradlew jacocoTestCoverageVerification --quiet
-#if [ $? -ne 0 ]; then
-#        echo "Commit bloqueado: la cobertura de código es inferior al 80%."
-#        echo "Ejecuta './gradlew jacocoTestReport' y revisa los reportes para mejorar la cobertura."
-#        exit 1
-#fi
+echo ""
+echo "Verificando cobertura de código"
+if ! ./gradlew jacocoTestCoverageVerification --quiet; then
+        echo "Commit bloqueado: la cobertura de código no cumple los requisitos."
+        echo "Ejecuta './gradlew jacocoTestReport' y revisa los reportes para mejorar la cobertura."
+        exit 1
+else
+        echo "El coverage supera el mínimo requerido."
+fi
 
+echo ""
 echo "Todo aprobado. Commit permitido."

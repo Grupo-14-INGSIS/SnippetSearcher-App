@@ -1,12 +1,32 @@
 plugins {
-    id 'org.jetbrains.kotlin.jvm' version '2.2.0'
+    id 'buildlogic.kotlin-myPlugin-conventions'
     id 'org.jetbrains.kotlin.plugin.spring' version '2.2.0'
     id 'org.springframework.boot' version '4.0.0'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'org.jetbrains.kotlin.plugin.jpa' version '2.2.0'
-    id 'org.jlleitschuh.gradle.ktlint' version '12.1.0'
-    id 'jacoco'
     id 'application'
+}
+
+def srcHookPath = "${rootDir}/.githooks/pre-commit"
+def hookFilePath = "${rootDir}/.git/hooks/pre-commit"
+
+tasks.register("installGitHook") {
+    def srcHook = file(srcHookPath)
+    def hookFile = file(hookFilePath)
+
+    outputs.file(hookFile)
+
+    doLast {
+        if (!srcHook.exists()) {
+            println "No hook found in .githooks/pre-commit"
+            return
+        }
+
+        hookFile.parentFile.mkdirs()
+        hookFile.text = srcHook.text
+        hookFile.setExecutable(true)
+        println "Pre-commit was installed/updated in .git/hooks/"
+    }
 }
 
 group = 'com.example'
@@ -51,9 +71,6 @@ dependencies {
     testImplementation 'com.h2database:h2'
 }
 
-ktlint {
-    version = "1.4.0"
-}
 
 
 tasks.named('test') {
