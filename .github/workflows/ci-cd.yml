@@ -53,6 +53,15 @@ jobs:
       - name: Run Detekt
         run: ./gradlew detekt
 
+      - name: Run tests
+        run: |
+          ./gradlew test --continue > .git/test-output.log
+          if grep -q "FAILED" .git/test-output.log; then
+            echo "Build bloqueado: fallaron tests."
+            cat .git/test-output.log | grep FAILED
+            exit 1
+          fi
+
       - name: Verify coverage
         run: |
           if ! ./gradlew jacocoTestCoverageVerification --quiet; then
