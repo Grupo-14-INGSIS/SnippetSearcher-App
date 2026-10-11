@@ -114,8 +114,12 @@ jobs:
       - name: Build and push Docker image
         run: |
           branch=${GITHUB_REF_NAME}
-          docker build -t ghcr.io/grupo-14-ingsis/snippetsearcher-app:$branch .
+          commit_sha=${GITHUB_SHA}
+          docker build \
+            -t ghcr.io/grupo-14-ingsis/snippetsearcher-app:$branch \
+            -t ghcr.io/grupo-14-ingsis/snippetsearcher-app:$branch-$commit_sha .
           docker push ghcr.io/grupo-14-ingsis/snippetsearcher-app:$branch
+          docker push ghcr.io/grupo-14-ingsis/snippetsearcher-app:$branch-$commit_sha
           
       - name: Dispatch to infrastructure repository
         run: |
