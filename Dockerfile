@@ -20,7 +20,8 @@ COPY --from=build /app/build/libs/*.jar app.jar
 
 # Copiar artefactos de New Relic
 RUN mkdir -p /usr/local/newrelic
-COPY newrelic/newrelic.jar /usr/local/newrelic/newrelic.jar
+# El agente se baja de Maven Central: >= 8.25.0 es necesario para capturar logs de logback 1.5.20+ (Spring Boot 4)
+ADD https://repo1.maven.org/maven2/com/newrelic/agent/java/newrelic-agent/8.25.1/newrelic-agent-8.25.1.jar /usr/local/newrelic/newrelic.jar
 COPY newrelic/newrelic.yml /usr/local/newrelic/newrelic.yml
 
 #Exponer puerto
