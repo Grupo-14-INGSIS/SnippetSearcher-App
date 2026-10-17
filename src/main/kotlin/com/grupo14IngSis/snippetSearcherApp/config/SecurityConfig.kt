@@ -20,17 +20,11 @@ class SecurityConfig {
         http
             .cors { cors -> cors.configurationSource(corsConfigurationSource()) }
             .authorizeHttpRequests { authorize ->
+                // El resultado del linteo/formateo ya no entra por HTTP: llega por Redis Streams
                 authorize
-                    .requestMatchers("/api/v1/testing")
-                    .permitAll()
-                    .requestMatchers("/api/v1/testing/separator")
-                    .permitAll()
                     .requestMatchers(HttpMethod.PUT, "/api/v1/snippets/*")
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/v1/snippets/*")
-                    .permitAll()
-                    // Runner (sin JWT) reporta el resultado del linteo/formateo asincrónico
-                    .requestMatchers(HttpMethod.PATCH, "/api/v1/snippets/*/status")
                     .permitAll()
                     .requestMatchers("/api/v1/**")
                     .authenticated()

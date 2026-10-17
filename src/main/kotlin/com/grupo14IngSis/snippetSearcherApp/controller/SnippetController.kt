@@ -5,7 +5,6 @@ import com.grupo14IngSis.snippetSearcherApp.client.RunnerClient
 import com.grupo14IngSis.snippetSearcherApp.domain.Snippet
 import com.grupo14IngSis.snippetSearcherApp.domain.Test
 import com.grupo14IngSis.snippetSearcherApp.domain.UserData
-import com.grupo14IngSis.snippetSearcherApp.dto.CancelExecutionRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForUserResponse
@@ -19,16 +18,19 @@ import com.grupo14IngSis.snippetSearcherApp.dto.SnippetPermissionData
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetRunRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetUpdateRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.StartExecutionResponse
+import com.grupo14IngSis.snippetSearcherApp.jobs.Compliance
+import com.grupo14IngSis.snippetSearcherApp.jobs.JobTask
+import com.grupo14IngSis.snippetSearcherApp.jobs.LintStatusStore
+import com.grupo14IngSis.snippetSearcherApp.jobs.SnippetJobProducer
 import com.grupo14IngSis.snippetSearcherApp.repository.SnippetRepository
 import com.grupo14IngSis.snippetSearcherApp.repository.TestRepository
 import com.grupo14IngSis.snippetSearcherApp.repository.UserDataRepository
-import com.grupo14IngSis.snippetSearcherApp.service.SnippetTaskProducer
 import org.slf4j.LoggerFactory
-import org.slf4j.MDC
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.dao.DataIntegrityViolationException
-import org.springframework.data.redis.core.RedisTemplate
+import org.springframework.http.ContentDisposition
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
@@ -40,7 +42,6 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestMethod
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.client.HttpClientErrorException
@@ -54,9 +55,8 @@ class SnippetController(
     private val snippetRepository: SnippetRepository,
     private val testRepository: TestRepository,
     private val userDataRepository: UserDataRepository,
-    private val snippetTaskProducer: SnippetTaskProducer,
-    private val redisTemplate: RedisTemplate<String, String>,
-    @Value("\${redis.stream.key}") private val streamKey: String,
+    private val jobProducer: SnippetJobProducer,
+    private val lintStatus: LintStatusStore,
 ) {
     private val logger = LoggerFactory.getLogger(SnippetController::class.java)
     private val ownerPermission = 2
@@ -103,17 +103,20 @@ class SnippetController(
         val userId = jwt.subject
         val snippetPermissions: GetPermissionsForUserResponse =
             accessManagerClient.getPermissionsForUser(userId) ?: return ResponseEntity.status(404).build()
+        // Estado de los trabajos de linteo de todos los snippets en un solo HMGET a Redis
+        val statuses = lintStatus.getAll(snippetPermissions.owned + snippetPermissions.shared)
         val output = mutableMapOf<String, SnippetPermissionData>()
         snippetPermissions.owned.forEach {
             val snippet = snippetRepository.findById(it).orElse(null)
             if (snippet != null) {
+                val compliance = Compliance.resolve(snippet.compliant, statuses[it])
                 output[it] =
                     SnippetPermissionData(
                         snippet.name,
                         snippet.language,
                         "owner",
-                        compliance = snippet.compliance,
-                        status = snippet.compliance,
+                        compliance = compliance,
+                        status = compliance,
                     )
             }
         }
@@ -127,13 +130,14 @@ class SnippetController(
                 }
             }
             if (snippet != null) {
+                val compliance = Compliance.resolve(snippet.compliant, statuses[it])
                 output[it] =
                     SnippetPermissionData(
                         snippet.name,
                         snippet.language,
                         "shared",
-                        compliance = snippet.compliance,
-                        status = snippet.compliance,
+                        compliance = compliance,
+                        status = compliance,
                     )
             }
         }
@@ -164,13 +168,14 @@ class SnippetController(
         }
         val snippet = snippetOptional.get()
         val content = runnerClient.getSnippetContent(snippetId)
+        val compliance = Compliance.resolve(snippet.compliant, lintStatus.get(snippetId))
         val response =
             SnippetData(
                 snippetId = snippet.snippetId,
                 name = snippet.name,
                 language = snippet.language,
-                compliance = snippet.compliance,
-                status = snippet.compliance,
+                compliance = compliance,
+                status = compliance,
                 description = snippet.description,
                 version = snippet.version,
                 content = content,
@@ -205,19 +210,23 @@ class SnippetController(
         @PathVariable snippetId: String,
         @RequestBody request: SnippetCreationRequest,
     ): ResponseEntity<SnippetCreationResponse> {
-        try {
-            snippetRepository.save(
-                Snippet(
-                    snippetId,
-                    request.name,
-                    request.language,
-                    snippetId,
-                    description = request.description ?: "",
-                    version = request.version ?: "1.1",
-                ),
+        val snippet =
+            Snippet(
+                snippetId,
+                request.name,
+                request.language,
+                snippetId,
+                description = request.description ?: "",
+                version = request.version ?: "1.1",
             )
+        // save() de JPA sobre un id existente lo PISA (merge) en lugar de fallar: hay que chequearlo antes
+        if (snippetRepository.existsById(snippetId)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(SnippetCreationResponse(false, "Snippet already exists"))
+        }
+        try {
+            snippetRepository.save(snippet)
         } catch (e: DataIntegrityViolationException) {
-            return ResponseEntity.badRequest().body(
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(
                 SnippetCreationResponse(
                     false,
                     "Snippet already exists",
@@ -232,6 +241,8 @@ class SnippetController(
             )
         }
         accessManagerClient.postPermission(request.userId, snippetId, "owner")
+        // El snippet nuevo se lintea en segundo plano con las reglas de su dueño
+        requestLintQuietly(snippet, request.userId)
         return ResponseEntity.ok().body(
             SnippetCreationResponse(
                 true,
@@ -254,17 +265,18 @@ class SnippetController(
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
         if (getAuthorization(userId, snippetId) < ownerPermission) {
-            return ResponseEntity.status(401).build()
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         accessManagerClient.deletePermissionForSnippet(snippetId)
         try {
-            runnerClient.deleteSnippet("snippets", snippetId)
+            runnerClient.deleteSnippet(snippetId)
         } catch (e: Exception) {
             // Si el contenido nunca llegó al asset service (404) igual queremos borrar el snippet
             logger.warn("Could not delete snippet content for $snippetId in Runner: ${e.message}")
         }
         snippetRepository.deleteById(snippetId)
         testRepository.deleteBySnippetId(snippetId)
+        runCatching { lintStatus.clear(snippetId) }
         return ResponseEntity.ok().build()
     }
 
@@ -281,7 +293,7 @@ class SnippetController(
      *       ...
      *     }
      */
-    @GetMapping(value = ["/snippets/{snippetId}/permissions", "/snippets/{snippetId}/permission"])
+    @GetMapping("/snippets/{snippetId}/permissions")
     @PreAuthorize("isAuthenticated()")
     fun getUsersWithPermission(
         authentication: Authentication,
@@ -290,7 +302,7 @@ class SnippetController(
         val jwt = authentication.principal as Jwt
         val ownerId = jwt.subject
         if (getAuthorization(ownerId, snippetId) < ownerPermission) {
-            return ResponseEntity.status(401).build()
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         val users =
             accessManagerClient.getPermissionsForSnippet(snippetId)
@@ -309,10 +321,7 @@ class SnippetController(
      *
      * Share a snippet with another user
      */
-    @RequestMapping(
-        value = ["/snippets/{snippetId}/permissions", "/snippets/{snippetId}/permission"],
-        method = [RequestMethod.POST, RequestMethod.PUT],
-    )
+    @PostMapping("/snippets/{snippetId}/permissions")
     @PreAuthorize("isAuthenticated()")
     fun shareSnippet(
         authentication: Authentication,
@@ -322,7 +331,7 @@ class SnippetController(
         val jwt = authentication.principal as Jwt
         val ownerId = jwt.subject
         if (getAuthorization(ownerId, snippetId) < ownerPermission) {
-            return ResponseEntity.status(401).build()
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
 
         val targetUser =
@@ -342,7 +351,7 @@ class SnippetController(
      *
      * Remove permission for another user
      */
-    @DeleteMapping(value = ["/snippets/{snippetId}/permissions/{userId}", "/snippets/{snippetId}/permission/{userId}"])
+    @DeleteMapping("/snippets/{snippetId}/permissions/{userId}")
     @PreAuthorize("isAuthenticated()")
     fun removeSnippetPermission(
         authentication: Authentication,
@@ -352,18 +361,18 @@ class SnippetController(
         val jwt = authentication.principal as Jwt
         val ownerId = jwt.subject
         if (getAuthorization(ownerId, snippetId) < ownerPermission) {
-            return ResponseEntity.status(401).build()
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         accessManagerClient.deletePermission(userId, snippetId)
         return ResponseEntity.ok().build()
     }
 
     /**
-     * POST / PUT /api/v1/users
+     * PUT /api/v1/users
      *
-     * Create or update a user
+     * Create or update the authenticated user. PUT porque es idempotente: la UI lo llama en cada login.
      */
-    @RequestMapping(value = ["/users"], method = [RequestMethod.POST, RequestMethod.PUT])
+    @PutMapping("/users")
     @PreAuthorize("isAuthenticated()")
     fun createUser(
         authentication: Authentication,
@@ -461,7 +470,7 @@ class SnippetController(
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
         if (getAuthorization(userId, snippetId) < sharedPermission) {
-            return ResponseEntity.status(401).build()
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         val response = mutableMapOf<String, Test>()
         val tests = testRepository.findBySnippetId(snippetId)
@@ -500,7 +509,7 @@ class SnippetController(
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
         if (getAuthorization(userId, snippetId) < ownerPermission) {
-            return ResponseEntity.status(401).build()
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         val testId = UUID.randomUUID().toString()
         val test =
@@ -518,9 +527,8 @@ class SnippetController(
 
     /**
      * POST   /api/v1/snippets/{snippetId}/tests/{testId}/runs
-     * PUT    /api/v1/snippets/{snippetId}/tests/{testId}
      *
-     * Start execution of a test
+     * Start execution of a test. Una "corrida" es un recurso nuevo (POST), no un reemplazo del test (PUT).
      *
      * Response:
      *
@@ -530,14 +538,7 @@ class SnippetController(
      *       message: String
      *     }
      */
-    @RequestMapping(
-        value = [
-            "/snippets/{snippetId}/tests/{testId}/runs",
-            "/snippets/{snippetId}/tests/{testId}/run",
-            "/snippets/{snippetId}/tests/{testId}",
-        ],
-        method = [RequestMethod.POST, RequestMethod.PUT],
-    )
+    @PostMapping("/snippets/{snippetId}/tests/{testId}/runs")
     @PreAuthorize("isAuthenticated()")
     fun runTest(
         authentication: Authentication,
@@ -547,7 +548,7 @@ class SnippetController(
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
         if (getAuthorization(userId, snippetId) < sharedPermission) {
-            return ResponseEntity.status(401).build()
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         val test =
             testRepository.findById(testId).orElse(null)
@@ -579,7 +580,7 @@ class SnippetController(
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
         if (getAuthorization(userId, snippetId) < ownerPermission) {
-            return ResponseEntity.status(401).build()
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         testRepository.deleteById(testId)
         return ResponseEntity.ok().build()
@@ -604,7 +605,7 @@ class SnippetController(
      *       message: List<String>
      *     }
      */
-    @PostMapping(value = ["/snippets/{snippetId}/executions", "/snippets/{snippetId}/execution", "/snippets/{snippetId}/run"])
+    @PostMapping("/snippets/{snippetId}/executions")
     @PreAuthorize("isAuthenticated()")
     fun runSnippet(
         authentication: Authentication,
@@ -614,7 +615,7 @@ class SnippetController(
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
         if (getAuthorization(userId, snippetId) < sharedPermission) {
-            return ResponseEntity.status(401).build()
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         val snippet = snippetRepository.findById(snippetId)
         if (snippet.isEmpty) {
@@ -636,7 +637,7 @@ class SnippetController(
      *       input: String
      *     }
      */
-    @PostMapping(value = ["/snippets/{snippetId}/executions/input", "/snippets/{snippetId}/execution/input"])
+    @PostMapping("/snippets/{snippetId}/executions/input")
     @PreAuthorize("isAuthenticated()")
     fun sendInput(
         authentication: Authentication,
@@ -646,7 +647,7 @@ class SnippetController(
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
         if (getAuthorization(userId, snippetId) < sharedPermission) {
-            return ResponseEntity.status(401).build()
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         val snippet = snippetRepository.findById(snippetId)
         if (snippet.isEmpty) {
@@ -656,17 +657,17 @@ class SnippetController(
         return ResponseEntity.noContent().build()
     }
 
-    @DeleteMapping(value = ["/snippets/{snippetId}/executions", "/snippets/{snippetId}/execution"])
+    // Sin body: un DELETE no debería llevarlo (proxies y clientes lo descartan) y el usuario sale del JWT
+    @DeleteMapping("/snippets/{snippetId}/executions")
     @PreAuthorize("isAuthenticated()")
     fun cancelSnippetExecution(
         authentication: Authentication,
         @PathVariable snippetId: String,
-        @RequestBody request: CancelExecutionRequest,
     ): ResponseEntity<Any> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
         if (getAuthorization(userId, snippetId) < sharedPermission) {
-            return ResponseEntity.status(401).build()
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         val snippet = snippetRepository.findById(snippetId)
         if (snippet.isEmpty) {
@@ -688,25 +689,73 @@ class SnippetController(
      *       message: List<String>
      *     }
      */
-    @GetMapping(
-        value = ["/snippets/{snippetId}/executions/status", "/snippets/{snippetId}/execution/status", "/snippets/{snippetId}/run/status"],
-    )
+    @GetMapping("/snippets/{snippetId}/executions/status")
     @PreAuthorize("isAuthenticated()")
     fun getExecutionStatus(
         authentication: Authentication,
         @PathVariable snippetId: String,
+        // run = ejecución interactiva, test = corrida de un test. La UI lo consulta mientras corre
+        // para mostrar el output a medida que se imprime (US #9 y #10).
+        @RequestParam(defaultValue = "run") kind: String,
     ): ResponseEntity<StartExecutionResponse> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
         if (getAuthorization(userId, snippetId) < sharedPermission) {
-            return ResponseEntity.status(401).build()
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         val snippet = snippetRepository.findById(snippetId)
         if (snippet.isEmpty) {
             return ResponseEntity.notFound().build()
         }
-        val output = runnerClient.getExecutionStatus(snippetId, userId)
+        if (kind != "run" && kind != "test") {
+            return ResponseEntity.badRequest().build()
+        }
+        val output = runnerClient.getExecutionStatus(snippetId, userId, kind)
         return ResponseEntity.ok().body(output)
+    }
+
+    /**
+     * GET /api/v1/snippets/{snippetId}/download?variant=original|formatted
+     *
+     * US #13: descargar el snippet. `original` es el código como lo escribió el usuario (aunque después
+     * se haya formateado); `formatted` es ese snippet formateado con las reglas de su dueño. Alcanza con
+     * tenerlo compartido (lectura). Responde el archivo `.ps` como adjunto.
+     */
+    @GetMapping("/snippets/{snippetId}/download")
+    @PreAuthorize("isAuthenticated()")
+    fun downloadSnippet(
+        authentication: Authentication,
+        @PathVariable snippetId: String,
+        @RequestParam(defaultValue = "original") variant: String,
+    ): ResponseEntity<String> {
+        val userId = (authentication.principal as Jwt).subject
+        if (getAuthorization(userId, snippetId) < sharedPermission) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        }
+        if (variant != "original" && variant != "formatted") {
+            return ResponseEntity.badRequest().body("variant must be original or formatted")
+        }
+        val snippet = snippetRepository.findById(snippetId).orElse(null) ?: return ResponseEntity.notFound().build()
+        val ownerId = accessManagerClient.getPermissionsForSnippet(snippetId)?.ownerId?.takeIf { it.isNotBlank() } ?: userId
+        val code =
+            try {
+                runnerClient.downloadSnippet(snippetId, variant, ownerId, snippet.language, snippet.version)
+            } catch (e: HttpClientErrorException) {
+                return ResponseEntity.status(e.statusCode).body(e.responseBodyAsString)
+            }
+        val fileName = if (variant == "formatted") "${snippet.name}.formatted.ps" else "${snippet.name}.ps"
+        // Con un nombre no ASCII (tildes, ñ) se codifica en UTF-8; si no, va tal cual
+        val disposition =
+            if (fileName.all { it.code < 128 }) {
+                ContentDisposition.attachment().filename(fileName).build()
+            } else {
+                ContentDisposition.attachment().filename(fileName, Charsets.UTF_8).build()
+            }
+        return ResponseEntity
+            .ok()
+            .contentType(MediaType("text", "plain", Charsets.UTF_8))
+            .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+            .body(code)
     }
 
     /**
@@ -734,40 +783,63 @@ class SnippetController(
         val userSnippets =
             accessManagerClient.getPermissionsForUser(userId) ?: return ResponseEntity.status(404).build()
         runnerClient.patchRules(userId, request.task, request.language, request.rules)
-        if (request.applyToSnippets) {
-            snippetTaskProducer.publish(userId, userSnippets.owned, request.language, request.task)
+        val task = JobTask.fromRuleTask(request.task)
+        if (!request.applyToSnippets || task == null) {
+            return ResponseEntity.ok().build()
         }
-        return ResponseEntity.ok().build()
+        // Las reglas ya quedaron guardadas; la revalidación de cada snippet es asíncrona (202).
+        // Solo se reprocesan los snippets de este lenguaje: las reglas son por lenguaje.
+        snippetRepository
+            .findAllById(userSnippets.owned)
+            .filter { it.language.equals(request.language, ignoreCase = true) }
+            .forEach {
+                try {
+                    when (task) {
+                        JobTask.LINT -> jobProducer.requestLint(it, userId)
+                        // Al terminar el formateo el App encola el linteo (ver SnippetJobResultConsumer)
+                        JobTask.FORMAT -> jobProducer.requestFormat(it, userId)
+                    }
+                } catch (e: Exception) {
+                    logger.warn("Could not queue ${task.wire} job for snippet ${it.snippetId}: ${e.message}")
+                }
+            }
+        return ResponseEntity.accepted().build()
     }
 
     /**
-     * PATCH /api/v1/snippets/{snippetId}/status
+     * POST /api/v1/snippets/{snippetId}/lint-jobs
      *
-     * Update task status (formatting/linting) and compliance for a snippet
+     * Crea un trabajo de linteo asíncrono (por eso 202 y un sustantivo, no el verbo "lint"). Lo llama
+     * el Runner después de guardar contenido nuevo (reenviando el JWT del usuario); el resultado llega
+     * por el stream de resultados.
      */
-    @org.springframework.web.bind.annotation.PatchMapping("/snippets/{snippetId}/status")
-    fun updateSnippetStatus(
+    @PostMapping("/snippets/{snippetId}/lint-jobs")
+    @PreAuthorize("isAuthenticated()")
+    fun requestLint(
+        authentication: Authentication,
         @PathVariable snippetId: String,
-        @RequestBody request: com.grupo14IngSis.snippetSearcherApp.dto.SnippetStatusUpdateRequest,
     ): ResponseEntity<Any> {
-        val snippetOptional = snippetRepository.findById(snippetId)
-        if (snippetOptional.isEmpty) {
-            return ResponseEntity.notFound().build()
+        val jwt = authentication.principal as Jwt
+        if (getAuthorization(jwt.subject, snippetId) < sharedPermission) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
-        val snippet = snippetOptional.get()
-        val taskName = request.task.lowercase()
-        if (taskName.contains("format")) {
-            snippet.formatterApplied = request.status
-        } else if (taskName.contains("lint")) {
-            snippet.linterApplied = request.status
-            if (request.compliance != null) {
-                snippet.compliance = request.compliance
-            } else {
-                snippet.compliance = if (request.status) "compliant" else "not-compliant"
-            }
+        val snippet = snippetRepository.findById(snippetId).orElse(null) ?: return ResponseEntity.notFound().build()
+        // Siempre con las reglas del dueño, aunque edite alguien con quien se compartió
+        val ownerId = accessManagerClient.getPermissionsForSnippet(snippetId)?.ownerId ?: jwt.subject
+        jobProducer.requestLint(snippet, ownerId)
+        return ResponseEntity.accepted().build()
+    }
+
+    private fun requestLintQuietly(
+        snippet: Snippet,
+        ownerId: String,
+    ) {
+        try {
+            jobProducer.requestLint(snippet, ownerId)
+        } catch (e: Exception) {
+            // No se pierde: queda "failed" (o compliant = null y lo toma el reconciliador)
+            logger.warn("Could not queue lint for new snippet ${snippet.snippetId}: ${e.message}")
         }
-        snippetRepository.save(snippet)
-        return ResponseEntity.ok().build()
     }
 
     /**
@@ -785,7 +857,7 @@ class SnippetController(
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
         if (getAuthorization(userId, snippetId) < ownerPermission) {
-            return ResponseEntity.status(401).build()
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         val snippetOptional = snippetRepository.findById(snippetId)
         if (snippetOptional.isEmpty) return ResponseEntity.notFound().build()
@@ -797,24 +869,50 @@ class SnippetController(
     }
 
     /**
-     * PUT /api/v1/snippets/{snippetId}/tasks/{task}
+     * POST /api/v1/snippets/{snippetId}/tasks/{task}
      *
-     * Apply a synchronous task to a snippet
+     * Apply a synchronous task to a snippet. POST y no PUT: es una acción que devuelve un resultado,
+     * no el reemplazo de un recurso.
      *
-     * Returns the raw content of the processed snippet
+     * Returns the raw content of the processed snippet (format) or the analyzer report (lint).
+     *
+     * Lint usa SIEMPRE el analizador de PrintScript con las reglas del dueño: es exactamente el mismo
+     * cálculo que da `compliant` en la lista, así el botón "Lint" de la UI no puede contradecirla.
+     * Body opcional (solo lint): `{content, version}` para lintear lo que hay en el editor sin guardarlo.
+     * Lintear solo lee, así que alcanza con tener el snippet compartido; formatear guarda y es solo del owner.
      */
-    @PutMapping(value = ["/snippets/{snippetId}/tasks/{task}", "/snippets/{snippetId}/task/{task}"])
+    @PostMapping("/snippets/{snippetId}/tasks/{task}")
     fun synchronousTask(
         authentication: Authentication,
         @PathVariable snippetId: String,
         @PathVariable task: String,
+        @RequestBody(required = false) body: Map<String, String>?,
     ): ResponseEntity<String> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
-        if (getAuthorization(userId, snippetId) < ownerPermission) {
-            return ResponseEntity.status(401).build()
+        val isLint = JobTask.fromRuleTask(task) == JobTask.LINT
+        if (getAuthorization(userId, snippetId) < (if (isLint) sharedPermission else ownerPermission)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
-        val processedSnippet = runnerClient.callTask(snippetId, task)
+        val snippet = snippetRepository.findById(snippetId).orElse(null) ?: return ResponseEntity.notFound().build()
+        // Las reglas que valen son las del dueño (las mismas con las que se calcula compliant)
+        val ownerId =
+            if (isLint) {
+                accessManagerClient.getPermissionsForSnippet(snippetId)?.ownerId?.takeIf { it.isNotBlank() } ?: userId
+            } else {
+                userId
+            }
+        val content = if (isLint) body?.get("content") else null
+        val version = body?.get("version")?.takeIf { it.isNotBlank() } ?: snippet.version
+        val processedSnippet =
+            try {
+                runnerClient.callTask(snippetId, task, ownerId, snippet.language, version, content)
+            } catch (e: HttpClientErrorException) {
+                // 400 del Runner (sin reglas, código que no parsea, tarea desconocida) o 404: se reenvía tal cual
+                return ResponseEntity.status(e.statusCode).body(e.responseBodyAsString)
+            }
+        // El formateo reemplazó el contenido: el resultado de linteo anterior ya no vale
+        if (JobTask.fromRuleTask(task) == JobTask.FORMAT) requestLintQuietly(snippet, userId)
         return ResponseEntity.ok().body(processedSnippet)
     }
 
@@ -849,37 +947,6 @@ class SnippetController(
             runnerClient.registerUser(userId)
             val rules = runnerClient.getRules(userId, task, language)
             return ResponseEntity.ok(rules)
-        }
-    }
-// ...
-
-// //////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    @PostMapping("/testing/separator")
-    fun printSeparator() {
-        println(
-            "###############################################################\n" +
-                "# SEPARATOR SEPARATOR SEPARATOR SEPARATOR SEPARATOR SEPARATOR #\n" +
-                "###############################################################",
-        )
-    }
-
-    @PostMapping("/testing")
-    fun sendTestingMessage() {
-        val requestId = MDC.get("requestId") ?: "unknown"
-        val payload: Map<String, String> =
-            mapOf(
-                "task" to "test",
-                "userId" to "userId",
-                "snippetId" to "it",
-                "language" to "language",
-            )
-        logger.info("[SNIPPET-APP] Request $requestId - Publishing test message to stream '$streamKey' with payload: $payload")
-        try {
-            redisTemplate.opsForStream<String, String>().add(streamKey, payload)
-            logger.debug("[SNIPPET-APP] Request $requestId - Redis STREAM ADD successful: $streamKey")
-        } catch (ex: Exception) {
-            logger.error("[SNIPPET-APP] Request $requestId - Redis error on STREAM ADD: $streamKey", ex)
         }
     }
 }
