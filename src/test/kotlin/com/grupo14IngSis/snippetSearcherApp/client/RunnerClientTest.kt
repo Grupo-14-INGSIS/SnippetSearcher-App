@@ -84,7 +84,7 @@ class RunnerClientTest {
     @Test
     fun `cancelExecution should delete execution`() {
         server
-            .expect(requestTo("$base/snippets/s1/executions"))
+            .expect(requestTo("$base/snippets/s1/executions?userId=u1"))
             .andExpect(method(HttpMethod.DELETE))
             .andRespond(withNoContent())
 
@@ -96,7 +96,7 @@ class RunnerClientTest {
     @Test
     fun `getExecutionStatus should include userId and return status`() {
         server
-            .expect(requestTo("$base/snippets/s1/executions/status?userId=u1"))
+            .expect(requestTo("$base/snippets/s1/executions/status?userId=u1&kind=run"))
             .andExpect(method(HttpMethod.GET))
             .andRespond(withSuccess("""{"status":"WAITING","message":["line"]}""", MediaType.APPLICATION_JSON))
 
@@ -109,12 +109,34 @@ class RunnerClientTest {
     @Test
     fun `getExecutionStatus without userId should return error on empty body`() {
         server
-            .expect(requestTo("$base/snippets/s1/executions/status"))
+            .expect(requestTo("$base/snippets/s1/executions/status?kind=run"))
             .andRespond(withNoContent())
 
         val response = client.getExecutionStatus("s1")
 
         assertEquals(ExecutionEventType.ERROR, response.status)
+    }
+
+    @Test
+    fun `getExecutionStatus of a test run asks for kind=test`() {
+        server
+            .expect(requestTo("$base/snippets/s1/executions/status?userId=u1&kind=test"))
+            .andRespond(withSuccess("""{"status":"OUTPUT","message":["hola"]}""", MediaType.APPLICATION_JSON))
+
+        val response = client.getExecutionStatus("s1", "u1", "test")
+
+        assertEquals(ExecutionEventType.OUTPUT, response.status)
+        assertEquals(listOf("hola"), response.message)
+    }
+
+    @Test
+    fun `downloadSnippet asks the Runner for the variant with the owner rules`() {
+        server
+            .expect(requestTo("$base/snippets/s1/download?variant=formatted&userId=o1&language=printscript&version=1.1"))
+            .andExpect(method(HttpMethod.GET))
+            .andRespond(withSuccess("let a : number = 1;", MediaType.TEXT_PLAIN))
+
+        assertEquals("let a : number = 1;", client.downloadSnippet("s1", "formatted", "o1", "printscript", "1.1"))
     }
 
     @Test
@@ -206,19 +228,19 @@ class RunnerClientTest {
             .andExpect(method(HttpMethod.DELETE))
             .andRespond(withNoContent())
 
-        client.deleteSnippet("snippets", "s1")
+        client.deleteSnippet("s1")
 
         server.verify()
     }
 
     @Test
-    fun `callTask should return processed snippet`() {
+    fun `callTask sends the owner, language and version so the Runner can load the rules`() {
         server
-            .expect(requestTo("$base/snippets/s1/tasks/format"))
-            .andExpect(method(HttpMethod.PUT))
+            .expect(requestTo("$base/snippets/s1/tasks/format?userId=auth0%7Cu1&language=printscript&version=1.1"))
+            .andExpect(method(HttpMethod.POST))
             .andRespond(withSuccess("formatted", MediaType.TEXT_PLAIN))
 
-        val result = client.callTask("s1", "format")
+        val result = client.callTask("s1", "format", "auth0|u1", "printscript", "1.1")
 
         assertEquals("formatted", result)
     }
@@ -226,10 +248,10 @@ class RunnerClientTest {
     @Test
     fun `callTask should return error message when body is empty`() {
         server
-            .expect(requestTo("$base/snippets/s1/tasks/lint"))
+            .expect(requestTo("$base/snippets/s1/tasks/lint?userId=u1&language=printscript&version=1.1"))
             .andRespond(withNoContent())
 
-        val result = client.callTask("s1", "lint")
+        val result = client.callTask("s1", "lint", "u1", "printscript", "1.1")
 
         assertEquals("Error while lint snippet", result)
     }

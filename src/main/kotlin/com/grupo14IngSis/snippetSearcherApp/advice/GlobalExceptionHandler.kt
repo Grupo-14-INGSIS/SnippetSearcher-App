@@ -7,9 +7,13 @@ import org.slf4j.LoggerFactory
 import org.slf4j.MDC
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.http.converter.HttpMessageNotReadableException
+import org.springframework.web.HttpMediaTypeNotSupportedException
+import org.springframework.web.HttpRequestMethodNotSupportedException
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.context.request.WebRequest
+import org.springframework.web.servlet.resource.NoResourceFoundException
 
 @ControllerAdvice
 class GlobalExceptionHandler {
@@ -35,6 +39,31 @@ class GlobalExceptionHandler {
             )
 
         return ResponseEntity(errorResponse, HttpStatus.BAD_REQUEST)
+    }
+
+    /**
+     * Ruta inexistente (404), método no soportado (405), Content-Type no soportado (415) o body ilegible
+     * (400): son errores del cliente, no del servidor. Sin esto el handler genérico de abajo los convertía en 500.
+     */
+    @ExceptionHandler(
+        HttpRequestMethodNotSupportedException::class,
+        NoResourceFoundException::class,
+        HttpMediaTypeNotSupportedException::class,
+        HttpMessageNotReadableException::class,
+    )
+    fun handleRoutingErrors(
+        ex: Exception,
+        httpRequest: HttpServletRequest,
+    ): ResponseEntity<ErrorResponse> {
+        val status =
+            when (ex) {
+                is HttpRequestMethodNotSupportedException -> HttpStatus.METHOD_NOT_ALLOWED
+                is HttpMediaTypeNotSupportedException -> HttpStatus.UNSUPPORTED_MEDIA_TYPE
+                is HttpMessageNotReadableException -> HttpStatus.BAD_REQUEST
+                else -> HttpStatus.NOT_FOUND
+            }
+        logger.warn("[SNIPPET-SEARCHER] ${httpRequest.method} ${httpRequest.requestURI} - ${status.value()}: ${ex.message}")
+        return ResponseEntity(ErrorResponse(status.value(), status.reasonPhrase, ex.message ?: ""), status)
     }
 
     @ExceptionHandler(Exception::class)

@@ -1,3 +1,4 @@
 redis:
-  stream:
-    key: "test-stream"
+  streams:
+    jobs: "test-jobs"
+    results: "test-job-results"

@@ -19,10 +19,11 @@ data class Snippet(
     val bucketId: String,
     @Column(name = "formatter_applied")
     var formatterApplied: Boolean = true,
-    @Column(name = "linter_applied")
-    var linterApplied: Boolean = true,
-    @Column(name = "compliance")
-    var compliance: String = "pending",
+    // Resultado del último linteo terminado: true = cumple las reglas, false = no las cumple,
+    // null = todavía no se linteó. "pending" y "failed" NO van acá: son estados del trabajo
+    // asíncrono y viven en Redis (ver jobs/LintStatusStore).
+    @Column(name = "compliant")
+    var compliant: Boolean? = null,
     @Column(name = "description", columnDefinition = "TEXT DEFAULT ''")
     var description: String = "",
     @Column(name = "version", columnDefinition = "TEXT DEFAULT '1.1'")

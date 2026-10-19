@@ -19,8 +19,18 @@ spring:
     host: ${REDIS_HOST}
     port: ${REDIS_PORT}
 redis:
-  stream:
-    key: "jobs"
+  streams:
+    # App -> Runner: trabajos de linteo/formateo. Runner -> App: resultados.
+    jobs: "snippet-jobs"
+    results: "snippet-job-results"
+    results-group: "app_group"
+    # XADD con MAXLEN ~ : el stream guarda historial pero recortado
+    max-length: 10000
+    # Cada cuánto se reintentan los mensajes que quedaron sin ACK (réplica caída, error transitorio)
+    reclaim-interval-ms: 30000
+    # Reconciliador: encola el linteo de snippets que nunca tuvieron resultado
+    reconcile-initial-delay-ms: 120000
+    reconcile-interval-ms: 300000
 
 app:
   accessmanager:

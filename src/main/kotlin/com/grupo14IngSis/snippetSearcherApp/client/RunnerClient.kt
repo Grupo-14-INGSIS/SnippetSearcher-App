@@ -7,13 +7,13 @@ import com.grupo14IngSis.snippetSearcherApp.dto.SnippetData
 import com.grupo14IngSis.snippetSearcherApp.dto.StartExecutionResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.TestResult
 import com.grupo14IngSis.snippetSearcherApp.dto.runnerclient.RunTestRequest
-import com.grupo14IngSis.snippetSearcherApp.dto.runnerclient.SnippetExecutionRunerCancel
 import com.grupo14IngSis.snippetSearcherApp.dto.runnerclient.SnippetExecutionRunnerRequest
 import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
+import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestTemplate
 
@@ -98,29 +98,27 @@ class RunnerClient(
         snippetId: String,
         userId: String,
     ) {
-        val url = "$runnerUrl/snippets/$snippetId/executions"
-        val requestEntity =
-            HttpEntity<SnippetExecutionRunerCancel>(
-                SnippetExecutionRunerCancel(userId),
-                HttpHeaders(),
-            )
+        // Sin body: el usuario viaja como query param, igual que en getExecutionStatus
         restTemplate.exchange(
-            url,
+            "$runnerUrl/snippets/$snippetId/executions?userId={userId}",
             HttpMethod.DELETE,
-            requestEntity,
+            HttpEntity<Void>(HttpHeaders()),
             Void::class.java,
+            mapOf("userId" to userId),
         )
     }
 
+    /** Estado y output hasta ahora de la ejecución (`kind` = run) o de la corrida de un test (`kind` = test). */
     fun getExecutionStatus(
         snippetId: String,
         userId: String? = null,
+        kind: String = "run",
     ): StartExecutionResponse {
         val url =
             if (userId != null) {
-                "$runnerUrl/snippets/$snippetId/executions/status?userId={userId}"
+                "$runnerUrl/snippets/$snippetId/executions/status?userId={userId}&kind={kind}"
             } else {
-                "$runnerUrl/snippets/$snippetId/executions/status"
+                "$runnerUrl/snippets/$snippetId/executions/status?kind={kind}"
             }
         val headers = HttpHeaders()
         val requestEntity = HttpEntity<Void>(headers)
@@ -131,10 +129,30 @@ class RunnerClient(
                     HttpMethod.GET,
                     requestEntity,
                     StartExecutionResponse::class.java,
-                    mapOf("userId" to (userId ?: "")),
+                    mapOf("userId" to (userId ?: ""), "kind" to kind),
                 ).body ?: StartExecutionResponse(ExecutionEventType.ERROR, listOf("Could not fetch status"))
         return response
     }
+
+    /**
+     * US #13: código para descargar. `variant` = original (como lo escribió el usuario) o formatted
+     * (formateado en el momento con las reglas de [userId], sin guardar).
+     */
+    fun downloadSnippet(
+        snippetId: String,
+        variant: String,
+        userId: String,
+        language: String,
+        version: String,
+    ): String =
+        restTemplate
+            .exchange(
+                "$runnerUrl/snippets/$snippetId/download?variant={variant}&userId={userId}&language={language}&version={version}",
+                HttpMethod.GET,
+                HttpEntity<Void>(HttpHeaders()),
+                String::class.java,
+                mapOf("variant" to variant, "userId" to userId, "language" to language, "version" to version),
+            ).body ?: ""
 
 // ##### TESTS #####
 
@@ -252,10 +270,7 @@ class RunnerClient(
 
 // ##### SNIPPETS #####
 
-    fun deleteSnippet(
-        container: String,
-        snippetId: String,
-    ) {
+    fun deleteSnippet(snippetId: String) {
         val url = "$runnerUrl/snippets/$snippetId"
         val headers = HttpHeaders()
         val requestEntity = HttpEntity<Void>(headers)
@@ -267,20 +282,30 @@ class RunnerClient(
         )
     }
 
+    /**
+     * Aplica una tarea (format/lint) en el Runner con las reglas de [userId] para ese lenguaje y versión.
+     * [content] (solo lint): código a analizar en lugar del guardado, por ejemplo lo que hay en el editor.
+     */
     fun callTask(
         snippetId: String,
         task: String,
+        userId: String,
+        language: String,
+        version: String,
+        content: String? = null,
     ): String {
-        val url = "$runnerUrl/snippets/$snippetId/tasks/$task"
+        val url = "$runnerUrl/snippets/$snippetId/tasks/$task?userId={userId}&language={language}&version={version}"
         val headers = HttpHeaders()
-        val requestEntity = HttpEntity<Void>(headers)
+        if (content != null) headers.contentType = MediaType.TEXT_PLAIN
+        val requestEntity = HttpEntity(content, headers)
         val response =
             restTemplate
                 .exchange(
                     url,
-                    HttpMethod.PUT,
+                    HttpMethod.POST,
                     requestEntity,
                     String::class.java,
+                    mapOf("userId" to userId, "language" to language, "version" to version),
                 ).body ?: return "Error while $task snippet"
         return response
     }
