@@ -77,6 +77,39 @@ class SnippetControllerTest {
     private val userId = "testUser"
 
     @Test
+    fun `CORS preflight from the UI domain is allowed`() {
+        mockMvc
+            .perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                    .options("/api/v1/snippets")
+                    .header(HttpHeaders.ORIGIN, "https://snippet26dev.duckdns.org")
+                    .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "GET")
+                    .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "authorization,x-request-id"),
+            ).andExpect(status().isOk)
+            .andExpect(
+                org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                    .header()
+                    .string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://snippet26dev.duckdns.org"),
+            )
+    }
+
+    @Test
+    fun `CORS preflight from another site is rejected`() {
+        mockMvc
+            .perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                    .options("/api/v1/snippets")
+                    .header(HttpHeaders.ORIGIN, "https://evil.example.com")
+                    .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "GET"),
+            ).andExpect(status().isForbidden)
+            .andExpect(
+                org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                    .header()
+                    .doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN),
+            )
+    }
+
+    @Test
     fun `getAllSnippets returns 200`() {
         `when`(accessManagerClient.getPermissionsForUser(userId))
             .thenReturn(GetPermissionsForUserResponse(userId, listOf("snippet1"), emptyList()))
