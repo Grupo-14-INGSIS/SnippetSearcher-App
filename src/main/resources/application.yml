@@ -43,6 +43,18 @@ runner:
 server:
   port: 8080
 
+# Chequeo de salud público para Synthetics: /api/actuator/health (nginx solo le manda a App lo que empieza
+# con /api/). Responde solo UP o DOWN, sin detalles. Incluye la base, Redis, Runner y AccessManager.
+management:
+  endpoints:
+    web:
+      base-path: /api/actuator
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
 auth0:
   domain: dev-65tlgyzfpbzeka8a.us.auth0.com
   audience: https://api.snippets.com
