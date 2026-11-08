@@ -14,7 +14,9 @@ spring:
     oauth2:
       resourceserver:
         jwt:
+          # Spring valida firma, iss y exp. audiences agrega aud: rechaza tokens emitidos para otra API
           issuer-uri: https://dev-65tlgyzfpbzeka8a.us.auth0.com/
+          audiences: https://api.snippets.com
   redis:
     host: ${REDIS_HOST}
     port: ${REDIS_PORT}
@@ -55,11 +57,8 @@ management:
     health:
       show-details: never
 
-auth0:
-  domain: dev-65tlgyzfpbzeka8a.us.auth0.com
-  audience: https://api.snippets.com
-  clientId: WlTG30qceM7qOiDY0hB90bVtUog4xCdp
-  clientSecret: gR_X5kVh5bjLPwqh9IHLE2aSwKFu5pkQ-MoIaN8Yjk_NIsAWbonq47IpgyoPjzPX
+# La app no usa credenciales de Auth0: solo valida tokens (issuer-uri y audiences, arriba).
+# El clientSecret que había acá estaba expuesto en el repo: hay que rotarlo en Auth0.
 
 
 # Configuración de logs con request-id

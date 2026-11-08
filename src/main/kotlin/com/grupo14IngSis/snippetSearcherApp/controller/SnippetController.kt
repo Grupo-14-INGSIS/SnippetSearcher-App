@@ -22,6 +22,7 @@ import com.grupo14IngSis.snippetSearcherApp.jobs.Compliance
 import com.grupo14IngSis.snippetSearcherApp.jobs.JobTask
 import com.grupo14IngSis.snippetSearcherApp.jobs.LintStatusStore
 import com.grupo14IngSis.snippetSearcherApp.jobs.SnippetJobProducer
+import com.grupo14IngSis.snippetSearcherApp.observability.BusinessEvents
 import com.grupo14IngSis.snippetSearcherApp.repository.SnippetRepository
 import com.grupo14IngSis.snippetSearcherApp.repository.TestRepository
 import com.grupo14IngSis.snippetSearcherApp.repository.UserDataRepository
@@ -57,6 +58,7 @@ class SnippetController(
     private val userDataRepository: UserDataRepository,
     private val jobProducer: SnippetJobProducer,
     private val lintStatus: LintStatusStore,
+    private val businessEvents: BusinessEvents,
 ) {
     private val logger = LoggerFactory.getLogger(SnippetController::class.java)
     private val ownerPermission = 2
@@ -141,6 +143,10 @@ class SnippetController(
                     )
             }
         }
+        // Evento de negocio: permite ver en New Relic si un usuario pasó de tener snippets a ver 0
+        val owned = output.values.count { it.permission == "owner" }
+        logger.info("snippets listed user=$userId count=${output.size} owned=$owned shared=${output.size - owned}")
+        businessEvents.snippetsListed(userId, output.size, owned)
         return ResponseEntity.ok().body(output)
     }
 
@@ -159,9 +165,15 @@ class SnippetController(
      *     }
      */
     @GetMapping("/snippets/{snippetId}")
+    @PreAuthorize("isAuthenticated()")
     fun getSnippetData(
+        authentication: Authentication,
         @PathVariable snippetId: String,
     ): ResponseEntity<SnippetData> {
+        val jwt = authentication.principal as Jwt
+        if (getAuthorization(jwt.subject, snippetId) < sharedPermission) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        }
         val snippetOptional = snippetRepository.findById(snippetId)
         if (snippetOptional.isEmpty) {
             return ResponseEntity.notFound().build()
@@ -186,29 +198,49 @@ class SnippetController(
     /**
      * PUT    /api/v1/snippets/{snippetId}
      *
-     * Register a snippet into App's database. It also adds owner permission to the current user.
+     * Crea un snippet. El dueño es siempre el usuario del token (el `userId` del body se ignora).
+     * Con `content`, App le pide al Runner que valide el código y lo guarde; el Runner después lo
+     * registra por la ruta interna (`/internal/snippets/{id}`). Sin `content`, se registra directo.
      *
-     * This endpoint is meant to be used by Runner after creating a snippet, using the same JWT used for the creation request
-     *
-     * Request:
-     *
-     *     {
-     *         userId: String,
-     *         name: String, -> Snippet name
-     *         language: String
-     *     }
-     *
-     * Response:
-     *
-     *     {
-     *       success: Boolean,
-     *       message: String
-     *     }
+     * Request: `{ name, language, content?, description?, version? }`
+     * Response: el snippet creado (con contenido) o `{ success, message }` (sin contenido)
      */
     @PutMapping("/snippets/{snippetId}")
-    fun registerSnippet(
+    @PreAuthorize("isAuthenticated()")
+    fun createSnippet(
+        authentication: Authentication,
         @PathVariable snippetId: String,
         @RequestBody request: SnippetCreationRequest,
+    ): ResponseEntity<Any> {
+        val ownerId = (authentication.principal as Jwt).subject
+        if (request.content.isNullOrBlank()) {
+            val result = registerSnippet(snippetId, ownerId, request)
+            return ResponseEntity.status(result.statusCode).body(result.body)
+        }
+        return try {
+            runnerClient.createSnippet(
+                snippetId,
+                ownerId,
+                request.name,
+                request.language,
+                request.content,
+                request.version ?: "1.1",
+                request.description ?: "",
+            )
+        } catch (e: HttpClientErrorException) {
+            // 400 del Runner: el código no parsea. Se reenvía el detalle (regla, línea, columna).
+            ResponseEntity.status(e.statusCode).body(e.responseBodyAsString)
+        }
+    }
+
+    /**
+     * Registra el snippet en la base de App, le da permiso de dueño a [ownerId] y encola su primer
+     * linteo. Lo usan el alta desde la UI y la ruta interna que llama el Runner.
+     */
+    fun registerSnippet(
+        snippetId: String,
+        ownerId: String,
+        request: SnippetCreationRequest,
     ): ResponseEntity<SnippetCreationResponse> {
         val snippet =
             Snippet(
@@ -240,9 +272,10 @@ class SnippetController(
                 ),
             )
         }
-        accessManagerClient.postPermission(request.userId, snippetId, "owner")
+        accessManagerClient.postPermission(ownerId, snippetId, "owner")
+        logger.info("snippet created snippetId=$snippetId owner=$ownerId language=${snippet.language}")
         // El snippet nuevo se lintea en segundo plano con las reglas de su dueño
-        requestLintQuietly(snippet, request.userId)
+        requestLintQuietly(snippet, ownerId)
         return ResponseEntity.ok().body(
             SnippetCreationResponse(
                 true,
@@ -277,6 +310,7 @@ class SnippetController(
         snippetRepository.deleteById(snippetId)
         testRepository.deleteBySnippetId(snippetId)
         runCatching { lintStatus.clear(snippetId) }
+        logger.info("snippet deleted snippetId=$snippetId by=$userId")
         return ResponseEntity.ok().build()
     }
 
@@ -343,6 +377,7 @@ class SnippetController(
         } catch (e: HttpClientErrorException.BadRequest) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("User already has permission for this snippet.")
         }
+        logger.info("snippet shared snippetId=$snippetId by=$ownerId with=${targetUser.userId}")
         return ResponseEntity.ok().build()
     }
 
@@ -364,6 +399,7 @@ class SnippetController(
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         accessManagerClient.deletePermission(userId, snippetId)
+        logger.info("snippet unshared snippetId=$snippetId by=$ownerId from=$userId")
         return ResponseEntity.ok().build()
     }
 
@@ -865,7 +901,16 @@ class SnippetController(
         body["description"]?.let { snippet.description = it }
         body["version"]?.let { snippet.version = it }
         snippetRepository.save(snippet)
-        return ResponseEntity.ok().build()
+        val content = body["content"] ?: return ResponseEntity.ok().build()
+        // Contenido nuevo: el Runner lo valida, lo guarda, pide el linteo y corre los tests. Se le pasa el
+        // token del usuario porque el Runner, a su vez, llama a App en su nombre.
+        return try {
+            val message = runnerClient.updateSnippetContent(snippetId, content, snippet.version, jwt.tokenValue)
+            logger.info("snippet content updated snippetId=$snippetId by=$userId")
+            ResponseEntity.ok().body(message)
+        } catch (e: HttpClientErrorException) {
+            ResponseEntity.status(e.statusCode).body(e.responseBodyAsString)
+        }
     }
 
     /**

@@ -10,7 +10,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
 import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RestController
 
 @WebMvcTest(controllers = [DummyController::class])
@@ -21,15 +20,6 @@ class SecurityConfigTest {
 
     @MockitoBean(enforceOverride = false)
     private lateinit var jwtDecoder: JwtDecoder
-
-    @Test
-    fun `permitAll should allow access to non-api paths`() {
-        mockMvc
-            .get("/public")
-            .andExpect {
-                status { isOk() }
-            }
-    }
 
     @Test
     fun `api path should be unauthorized without authentication`() {
@@ -49,6 +39,22 @@ class SecurityConfigTest {
                 status { isOk() }
             }
     }
+
+    @Test
+    fun `internal routes and the health check do not need a token`() {
+        mockMvc.get("/internal/resource").andExpect { status { isOk() } }
+        mockMvc.get("/api/actuator/health").andExpect { status { isOk() } }
+    }
+
+    @Test
+    fun `any other path is denied`() {
+        mockMvc
+            .get("/public") {
+                with(jwt())
+            }.andExpect {
+                status { isForbidden() }
+            }
+    }
 }
 
 @RestController
@@ -59,6 +65,9 @@ class DummyController {
     @GetMapping("/api/v1/resource")
     fun apiEndpoint(): String = "secured"
 
-    @PostMapping("/public")
-    fun publicPost(): String = "posted"
+    @GetMapping("/internal/resource")
+    fun internalEndpoint(): String = "internal"
+
+    @GetMapping("/api/actuator/health")
+    fun health(): String = """{"status":"UP"}"""
 }
