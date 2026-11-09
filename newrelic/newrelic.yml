@@ -13,7 +13,8 @@ common: &default_settings
   # account. For example, if your license key is 12345 use this:
   # license_key: '12345'
   # The key binds your agent's data to your account in the New Relic service.
-  license_key: '44361fb28211be08bdb208a56380f609FFFFNRAL'
+  # La clave NO va en el repo: el agente la toma de la variable NEW_RELIC_LICENSE_KEY, que
+  # docker-stack.yml carga desde el secret NEW_RELIC_LICENSE_KEY del environment de GitHub.
 
   # Agent Enabled
   # Use this setting to disable the agent instead of removing it from the startup command.
@@ -99,6 +100,10 @@ common: &default_settings
 
       # When true, application logs will be forwarded to New Relic. The default is true.
       enabled: true
+
+      # Manda el MDC (requestId) como atributo de cada log: se filtra por campo en New Relic
+      context_data:
+        enabled: true
 
       # Application log events are collected up to the configured amount. Afterwards,
       # events are sampled to maintain an even distribution across the harvest cycle.

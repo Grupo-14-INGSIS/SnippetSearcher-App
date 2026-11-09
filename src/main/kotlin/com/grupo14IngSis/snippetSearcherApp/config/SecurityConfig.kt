@@ -3,7 +3,6 @@ package com.grupo14IngSis.snippetSearcherApp.config
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
@@ -30,16 +29,16 @@ class SecurityConfig(
         http
             .cors { cors -> cors.configurationSource(corsConfigurationSource()) }
             .authorizeHttpRequests { authorize ->
-                // El resultado del linteo/formateo ya no entra por HTTP: llega por Redis Streams
+                // Toda la API pública pide un token válido (firma, iss, exp y aud). Quedan sin token:
+                // - /internal/**: solo para otros servicios. nginx no la publica (solo reenvía /api/).
+                // - /api/actuator/health: el chequeo de salud de Synthetics. Responde solo UP o DOWN.
                 authorize
-                    .requestMatchers(HttpMethod.PUT, "/api/v1/snippets/*")
+                    .requestMatchers("/internal/**", "/api/actuator/health", "/error")
                     .permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/v1/snippets/*")
-                    .permitAll()
-                    .requestMatchers("/api/v1/**")
+                    .requestMatchers("/api/**")
                     .authenticated()
                     .anyRequest()
-                    .permitAll()
+                    .denyAll()
             }.oauth2ResourceServer { oauth2 ->
                 oauth2.jwt {}
             }.csrf { csrf -> csrf.disable() }

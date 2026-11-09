@@ -14,6 +14,7 @@ import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestTemplate
 
@@ -269,6 +270,62 @@ class RunnerClient(
     }
 
 // ##### SNIPPETS #####
+
+    /**
+     * Le pide al Runner que valide el código y lo guarde. El Runner después registra el snippet en
+     * App por la ruta interna. Devuelve la respuesta del Runner tal cual (201 con el snippet creado).
+     */
+    fun createSnippet(
+        snippetId: String,
+        ownerId: String,
+        name: String,
+        language: String,
+        content: String,
+        version: String,
+        description: String,
+    ): ResponseEntity<Any> {
+        val headers = createHeaders()
+        headers.contentType = MediaType.APPLICATION_JSON
+        val body =
+            mapOf(
+                "userId" to ownerId,
+                "name" to name,
+                "language" to language,
+                "snippet" to content,
+                "version" to version,
+                "description" to description,
+            )
+        val response =
+            restTemplate.exchange(
+                "$runnerUrl/snippets/$snippetId",
+                HttpMethod.PUT,
+                HttpEntity(body, headers),
+                Any::class.java,
+            )
+        return ResponseEntity.status(response.statusCode).body(response.body)
+    }
+
+    /**
+     * Reemplaza el contenido de un snippet. [jwt] es el token del usuario: el Runner lo usa para pedirle
+     * a App el linteo y los tests en su nombre. Devuelve el mensaje del Runner con el resultado de los tests.
+     */
+    fun updateSnippetContent(
+        snippetId: String,
+        content: String,
+        version: String,
+        jwt: String,
+    ): String {
+        val headers = createHeaders()
+        headers.contentType = MediaType.APPLICATION_JSON
+        val body = mapOf("snippet" to content, "version" to version, "jwt" to jwt)
+        return restTemplate
+            .exchange(
+                "$runnerUrl/snippets/$snippetId",
+                HttpMethod.PATCH,
+                HttpEntity(body, headers),
+                String::class.java,
+            ).body ?: "Snippet updated successfully."
+    }
 
     fun deleteSnippet(snippetId: String) {
         val url = "$runnerUrl/snippets/$snippetId"

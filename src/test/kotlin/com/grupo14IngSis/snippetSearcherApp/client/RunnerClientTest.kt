@@ -43,6 +43,41 @@ class RunnerClientTest {
     }
 
     @Test
+    fun `createSnippet sends the owner and the code to the Runner and returns its response`() {
+        server
+            .expect(requestTo("$base/snippets/s1"))
+            .andExpect(method(HttpMethod.PUT))
+            .andExpect(
+                content().json(
+                    """{"userId":"u1","name":"n","language":"printscript","snippet":"println(1);","version":"1.1","description":"d"}""",
+                ),
+            ).andRespond(
+                org.springframework.test.web.client.response.MockRestResponseCreators
+                    .withStatus(org.springframework.http.HttpStatus.CREATED)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("""{"id":"s1"}"""),
+            )
+
+        val response = client.createSnippet("s1", "u1", "n", "printscript", "println(1);", "1.1", "d")
+
+        assertEquals(201, response.statusCode.value())
+        assertEquals(mapOf("id" to "s1"), response.body)
+        server.verify()
+    }
+
+    @Test
+    fun `updateSnippetContent patches the Runner with the user token`() {
+        server
+            .expect(requestTo("$base/snippets/s1"))
+            .andExpect(method(HttpMethod.PATCH))
+            .andExpect(content().json("""{"snippet":"println(2);","version":"1.1","jwt":"tok"}"""))
+            .andRespond(withSuccess("Snippet updated successfully.", MediaType.TEXT_PLAIN))
+
+        assertEquals("Snippet updated successfully.", client.updateSnippetContent("s1", "println(2);", "1.1", "tok"))
+        server.verify()
+    }
+
+    @Test
     fun `runSnippet should post execution request and return status`() {
         server
             .expect(requestTo("$base/snippets/s1/executions"))
