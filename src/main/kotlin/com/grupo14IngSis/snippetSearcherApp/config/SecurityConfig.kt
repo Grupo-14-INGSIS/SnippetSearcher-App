@@ -29,11 +29,11 @@ class SecurityConfig(
         http
             .cors { cors -> cors.configurationSource(corsConfigurationSource()) }
             .authorizeHttpRequests { authorize ->
-                // Toda la API pública pide un token válido (firma, iss, exp y aud). Quedan sin token:
-                // - /internal/**: solo para otros servicios. nginx no la publica (solo reenvía /api/).
-                // - /api/actuator/health: el chequeo de salud de Synthetics. Responde solo UP o DOWN.
+                // Toda la API pública pide un token válido (firma, iss, exp y aud). Queda sin token solo
+                // /api/actuator/health: el chequeo de salud de Synthetics. Responde solo UP o DOWN.
+                // No hay rutas para otros servicios: el Runner y AccessManager nunca llaman a App.
                 authorize
-                    .requestMatchers("/internal/**", "/api/actuator/health", "/error")
+                    .requestMatchers("/api/actuator/health", "/error")
                     .permitAll()
                     .requestMatchers("/api/**")
                     .authenticated()

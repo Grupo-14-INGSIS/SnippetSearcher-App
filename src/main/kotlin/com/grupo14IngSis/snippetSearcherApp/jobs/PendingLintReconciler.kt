@@ -11,6 +11,9 @@ import org.springframework.stereotype.Component
  * Encola el linteo de los snippets que nunca obtuvieron resultado (`compliant = null`) y no tienen
  * trabajo en curso: snippets creados antes de este cambio o cuyo mensaje nunca llegó a publicarse.
  *
+ * Antes, si el Runner trae una versión nueva del parser de PrintScript, marca todos los snippets para
+ * re-evaluar (ver [ParserVersionWatcher]); así esta misma pasada los vuelve a encolar.
+ *
  * Con varias réplicas del App corriendo a la vez no se duplica: `requestLintIfIdle` usa HSETNX
  * sobre el estado, así que solo la primera réplica encola cada snippet.
  */
@@ -20,6 +23,7 @@ class PendingLintReconciler(
     private val snippetRepository: SnippetRepository,
     private val accessManagerClient: AccessManagerClient,
     private val jobProducer: SnippetJobProducer,
+    private val parserVersionWatcher: ParserVersionWatcher,
 ) {
     private val logger = LoggerFactory.getLogger(PendingLintReconciler::class.java)
 
@@ -28,6 +32,7 @@ class PendingLintReconciler(
         fixedDelayString = "\${redis.streams.reconcile-interval-ms:300000}",
     )
     fun reconcile() {
+        parserVersionWatcher.checkForNewVersion()
         val neverLinted = snippetRepository.findByCompliantIsNull()
         var queued = 0
         for (snippet in neverLinted) {

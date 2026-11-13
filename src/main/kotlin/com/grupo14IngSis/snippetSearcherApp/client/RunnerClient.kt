@@ -272,28 +272,24 @@ class RunnerClient(
 // ##### SNIPPETS #####
 
     /**
-     * Le pide al Runner que valide el código y lo guarde. El Runner después registra el snippet en
-     * App por la ruta interna. Devuelve la respuesta del Runner tal cual (201 con el snippet creado).
+     * Le pide al Runner que valide el código y lo guarde. El Runner solo guarda: registrar el snippet
+     * (metadatos y dueño) lo hace App después. Devuelve la respuesta del Runner (201 con el snippet creado).
      */
     fun createSnippet(
         snippetId: String,
-        ownerId: String,
         name: String,
         language: String,
         content: String,
         version: String,
-        description: String,
     ): ResponseEntity<Any> {
         val headers = createHeaders()
         headers.contentType = MediaType.APPLICATION_JSON
         val body =
             mapOf(
-                "userId" to ownerId,
                 "name" to name,
                 "language" to language,
                 "snippet" to content,
                 "version" to version,
-                "description" to description,
             )
         val response =
             restTemplate.exchange(
@@ -306,25 +302,23 @@ class RunnerClient(
     }
 
     /**
-     * Reemplaza el contenido de un snippet. [jwt] es el token del usuario: el Runner lo usa para pedirle
-     * a App el linteo y los tests en su nombre. Devuelve el mensaje del Runner con el resultado de los tests.
+     * Reemplaza el contenido de un snippet: el Runner lo valida y lo guarda. El linteo y los tests los
+     * dispara App después. Si el código no parsea, el Runner responde 400 (HttpClientErrorException).
      */
     fun updateSnippetContent(
         snippetId: String,
         content: String,
         version: String,
-        jwt: String,
-    ): String {
+    ) {
         val headers = createHeaders()
         headers.contentType = MediaType.APPLICATION_JSON
-        val body = mapOf("snippet" to content, "version" to version, "jwt" to jwt)
-        return restTemplate
-            .exchange(
-                "$runnerUrl/snippets/$snippetId",
-                HttpMethod.PATCH,
-                HttpEntity(body, headers),
-                String::class.java,
-            ).body ?: "Snippet updated successfully."
+        val body = mapOf("snippet" to content, "version" to version)
+        restTemplate.exchange(
+            "$runnerUrl/snippets/$snippetId",
+            HttpMethod.PATCH,
+            HttpEntity(body, headers),
+            String::class.java,
+        )
     }
 
     fun deleteSnippet(snippetId: String) {
@@ -341,7 +335,8 @@ class RunnerClient(
 
     /**
      * Aplica una tarea (format/lint) en el Runner con las reglas de [userId] para ese lenguaje y versión.
-     * [content] (solo lint): código a analizar en lugar del guardado, por ejemplo lo que hay en el editor.
+     * [content]: código a procesar en lugar del guardado, por ejemplo lo que hay en el editor. Con
+     * [content] el Runner no guarda nada (vista previa); sin él, el formateo reemplaza el código guardado.
      */
     fun callTask(
         snippetId: String,
@@ -383,6 +378,17 @@ class RunnerClient(
         } catch (_: Exception) {
             null
         }
+
+    /** Versión de las librerías de PrintScript (parser, linter) con las que corre el Runner. */
+    fun getParserVersion(): String? =
+        restTemplate
+            .exchange(
+                "$runnerUrl/version",
+                HttpMethod.GET,
+                HttpEntity<Void>(createHeaders()),
+                Map::class.java,
+            ).body
+            ?.get("printscript") as? String
 
     fun getSnippetContent(snippetId: String): String? =
         try {

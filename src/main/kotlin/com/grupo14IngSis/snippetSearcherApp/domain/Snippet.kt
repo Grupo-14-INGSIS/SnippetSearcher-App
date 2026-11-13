@@ -12,9 +12,9 @@ data class Snippet(
     @Column(name = "id_snippet")
     val snippetId: String,
     @Column(nullable = false)
-    val name: String,
+    var name: String,
     @Column(nullable = false)
-    val language: String,
+    var language: String,
     @Column(nullable = false)
     val bucketId: String,
     @Column(name = "formatter_applied")

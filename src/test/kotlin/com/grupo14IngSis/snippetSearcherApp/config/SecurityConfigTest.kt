@@ -41,9 +41,14 @@ class SecurityConfigTest {
     }
 
     @Test
-    fun `internal routes and the health check do not need a token`() {
-        mockMvc.get("/internal/resource").andExpect { status { isOk() } }
+    fun `the health check does not need a token`() {
         mockMvc.get("/api/actuator/health").andExpect { status { isOk() } }
+    }
+
+    @Test
+    fun `there are no internal routes without a token anymore`() {
+        mockMvc.get("/internal/resource").andExpect { status { isUnauthorized() } }
+        mockMvc.get("/internal/resource") { with(jwt()) }.andExpect { status { isForbidden() } }
     }
 
     @Test

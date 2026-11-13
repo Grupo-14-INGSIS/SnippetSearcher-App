@@ -1,6 +1,5 @@
 package com.grupo14IngSis.snippetSearcherApp.client
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.grupo14IngSis.snippetSearcherApp.config.RestTemplateConfig
 import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForSnippetResponse
@@ -20,6 +19,7 @@ import org.springframework.test.web.client.match.MockRestRequestMatchers.request
 import org.springframework.test.web.client.response.MockRestResponseCreators.withNoContent
 import org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
 import org.springframework.web.client.RestTemplate
+import tools.jackson.databind.ObjectMapper
 
 @RestClientTest(AccessManagerClient::class)
 @Import(RestTemplateConfig::class)

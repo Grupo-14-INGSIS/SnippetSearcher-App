@@ -43,13 +43,14 @@ class RunnerClientTest {
     }
 
     @Test
-    fun `createSnippet sends the owner and the code to the Runner and returns its response`() {
+    fun `createSnippet sends the code to the Runner and returns its response`() {
         server
             .expect(requestTo("$base/snippets/s1"))
             .andExpect(method(HttpMethod.PUT))
             .andExpect(
                 content().json(
-                    """{"userId":"u1","name":"n","language":"printscript","snippet":"println(1);","version":"1.1","description":"d"}""",
+                    """{"name":"n","language":"printscript","snippet":"println(1);","version":"1.1"}""",
+                    org.springframework.test.json.JsonCompareMode.STRICT,
                 ),
             ).andRespond(
                 org.springframework.test.web.client.response.MockRestResponseCreators
@@ -58,7 +59,7 @@ class RunnerClientTest {
                     .body("""{"id":"s1"}"""),
             )
 
-        val response = client.createSnippet("s1", "u1", "n", "printscript", "println(1);", "1.1", "d")
+        val response = client.createSnippet("s1", "n", "printscript", "println(1);", "1.1")
 
         assertEquals(201, response.statusCode.value())
         assertEquals(mapOf("id" to "s1"), response.body)
@@ -66,14 +67,15 @@ class RunnerClientTest {
     }
 
     @Test
-    fun `updateSnippetContent patches the Runner with the user token`() {
+    fun `updateSnippetContent patches the Runner with only the code and the version`() {
         server
             .expect(requestTo("$base/snippets/s1"))
             .andExpect(method(HttpMethod.PATCH))
-            .andExpect(content().json("""{"snippet":"println(2);","version":"1.1","jwt":"tok"}"""))
-            .andRespond(withSuccess("Snippet updated successfully.", MediaType.TEXT_PLAIN))
+            .andExpect(
+                content().json("""{"snippet":"println(2);","version":"1.1"}""", org.springframework.test.json.JsonCompareMode.STRICT),
+            ).andRespond(withSuccess("Snippet content updated.", MediaType.TEXT_PLAIN))
 
-        assertEquals("Snippet updated successfully.", client.updateSnippetContent("s1", "println(2);", "1.1", "tok"))
+        client.updateSnippetContent("s1", "println(2);", "1.1")
         server.verify()
     }
 
