@@ -335,7 +335,8 @@ class RunnerClient(
 
     /**
      * Aplica una tarea (format/lint) en el Runner con las reglas de [userId] para ese lenguaje y versión.
-     * [content] (solo lint): código a analizar en lugar del guardado, por ejemplo lo que hay en el editor.
+     * [content]: código a procesar en lugar del guardado, por ejemplo lo que hay en el editor. Con
+     * [content] el Runner no guarda nada (vista previa); sin él, el formateo reemplaza el código guardado.
      */
     fun callTask(
         snippetId: String,
@@ -377,6 +378,17 @@ class RunnerClient(
         } catch (_: Exception) {
             null
         }
+
+    /** Versión de las librerías de PrintScript (parser, linter) con las que corre el Runner. */
+    fun getParserVersion(): String? =
+        restTemplate
+            .exchange(
+                "$runnerUrl/version",
+                HttpMethod.GET,
+                HttpEntity<Void>(createHeaders()),
+                Map::class.java,
+            ).body
+            ?.get("printscript") as? String
 
     fun getSnippetContent(snippetId: String): String? =
         try {

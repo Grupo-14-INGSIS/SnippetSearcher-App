@@ -65,6 +65,8 @@ class SnippetController(
     private val ownerPermission = 2
     private val sharedPermission = 1
     private val noPermission = 0
+    private val supportedLanguages = setOf("printscript")
+    private val supportedVersions = setOf("1.0", "1.1")
 
     private fun getAuthorization(
         userId: String,
@@ -879,7 +881,10 @@ class SnippetController(
     /**
      * PATCH /api/v1/snippets/{snippetId}
      *
-     * Update snippet metadata (name, description). The code content is managed by the Runner service.
+     * Edita el snippet (US #2). Solo el dueño. Body con los campos a cambiar:
+     * `{ name?, description?, language?, version?, content? }`. Con `content`, el Runner valida y guarda el
+     * código, y App encola el linteo y corre los tests. Cambiar el lenguaje o la versión también invalida el
+     * linteo anterior (el mismo código puede parsear distinto).
      */
     @org.springframework.web.bind.annotation.PatchMapping("/snippets/{snippetId}")
     @PreAuthorize("isAuthenticated()")
@@ -896,22 +901,40 @@ class SnippetController(
         val snippetOptional = snippetRepository.findById(snippetId)
         if (snippetOptional.isEmpty) return ResponseEntity.notFound().build()
         val snippet = snippetOptional.get()
-        body["description"]?.let { snippet.description = it }
-        body["version"]?.let { snippet.version = it }
-        snippetRepository.save(snippet)
-        val content = body["content"] ?: return ResponseEntity.ok().build()
-        // Contenido nuevo. App orquesta: el Runner solo valida y guarda; App encola el linteo y corre los tests.
-        try {
-            runnerClient.updateSnippetContent(snippetId, content, snippet.version)
-        } catch (e: HttpClientErrorException) {
-            return ResponseEntity.status(e.statusCode).body(e.responseBodyAsString)
+        val name = body["name"]?.trim()
+        if (name != null && name.isEmpty()) return ResponseEntity.badRequest().body("name must not be blank")
+        val language = body["language"]?.trim()?.lowercase()
+        if (language != null && language !in supportedLanguages) {
+            return ResponseEntity.badRequest().body("Unsupported language: $language")
         }
-        logger.info("snippet content updated snippetId=$snippetId by=$userId")
+        val version = body["version"]?.trim()
+        if (version != null && version !in supportedVersions) {
+            return ResponseEntity.badRequest().body("Unsupported version: $version")
+        }
+        val parsingChanged = (language != null && language != snippet.language) || (version != null && version != snippet.version)
+        name?.let { snippet.name = it }
+        body["description"]?.let { snippet.description = it }
+        language?.let { snippet.language = it }
+        version?.let { snippet.version = it }
+        val content = body["content"]
+        if (content != null) {
+            // App orquesta: el Runner solo valida y guarda el código. Si lo rechaza, no se guarda ningún
+            // cambio (tampoco el nombre ni la descripción).
+            try {
+                runnerClient.updateSnippetContent(snippetId, content, snippet.version)
+            } catch (e: HttpClientErrorException) {
+                return ResponseEntity.status(e.statusCode).body(e.responseBodyAsString)
+            }
+            logger.info("snippet content updated snippetId=$snippetId by=$userId")
+        }
+        val relint = content != null || parsingChanged
         // El resultado de linteo anterior ya no vale: queda "pending" y, si encolar falla, lo retoma el reconciliador
-        snippet.compliant = null
+        if (relint) snippet.compliant = null
         snippetRepository.save(snippet)
+        if (!relint) return ResponseEntity.ok().build()
         // Siempre con las reglas del dueño (hoy solo el dueño puede editar, pero no depende de eso)
         requestLintQuietly(snippet, accessManagerClient.getPermissionsForSnippet(snippetId)?.ownerId ?: userId)
+        if (content == null) return ResponseEntity.ok().build()
         return ResponseEntity.ok().body(runTestsAfterUpdate(snippetId, userId))
     }
 
@@ -946,8 +969,10 @@ class SnippetController(
      *
      * Lint usa SIEMPRE el analizador de PrintScript con las reglas del dueño: es exactamente el mismo
      * cálculo que da `compliant` en la lista, así el botón "Lint" de la UI no puede contradecirla.
-     * Body opcional (solo lint): `{content, version}` para lintear lo que hay en el editor sin guardarlo.
-     * Lintear solo lee, así que alcanza con tener el snippet compartido; formatear guarda y es solo del owner.
+     * Format también usa el formatter de PrintScript del Runner con las reglas del dueño.
+     * Body opcional: `{content, version}` para procesar lo que hay en el editor sin guardarlo (vista previa:
+     * el botón Format de la UI). Lintear y la vista previa solo leen, así que alcanza con tener el snippet
+     * compartido; formatear sin body reemplaza el código guardado y es solo del dueño.
      */
     @PostMapping("/snippets/{snippetId}/tasks/{task}")
     fun synchronousTask(
@@ -958,19 +983,21 @@ class SnippetController(
     ): ResponseEntity<String> {
         val jwt = authentication.principal as Jwt
         val userId = jwt.subject
-        val isLint = JobTask.fromRuleTask(task) == JobTask.LINT
-        if (getAuthorization(userId, snippetId) < (if (isLint) sharedPermission else ownerPermission)) {
+        val content = body?.get("content")?.takeIf { it.isNotBlank() }
+        // Sin content, el formateo guarda el resultado: eso modifica el snippet
+        val modifies = JobTask.fromRuleTask(task) == JobTask.FORMAT && content == null
+        val permission = getAuthorization(userId, snippetId)
+        if (permission < (if (modifies) ownerPermission else sharedPermission)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         val snippet = snippetRepository.findById(snippetId).orElse(null) ?: return ResponseEntity.notFound().build()
         // Las reglas que valen son las del dueño (las mismas con las que se calcula compliant)
         val ownerId =
-            if (isLint) {
-                accessManagerClient.getPermissionsForSnippet(snippetId)?.ownerId?.takeIf { it.isNotBlank() } ?: userId
-            } else {
+            if (permission == ownerPermission) {
                 userId
+            } else {
+                accessManagerClient.getPermissionsForSnippet(snippetId)?.ownerId?.takeIf { it.isNotBlank() } ?: userId
             }
-        val content = if (isLint) body?.get("content") else null
         val version = body?.get("version")?.takeIf { it.isNotBlank() } ?: snippet.version
         val processedSnippet =
             try {
@@ -980,7 +1007,7 @@ class SnippetController(
                 return ResponseEntity.status(e.statusCode).body(e.responseBodyAsString)
             }
         // El formateo reemplazó el contenido: el resultado de linteo anterior ya no vale
-        if (JobTask.fromRuleTask(task) == JobTask.FORMAT) requestLintQuietly(snippet, userId)
+        if (modifies) requestLintQuietly(snippet, userId)
         return ResponseEntity.ok().body(processedSnippet)
     }
 

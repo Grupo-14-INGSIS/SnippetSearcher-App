@@ -5,6 +5,7 @@ import com.grupo14IngSis.snippetSearcherApp.domain.Snippet
 import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForSnippetResponse
 import com.grupo14IngSis.snippetSearcherApp.repository.SnippetRepository
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito.inOrder
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
@@ -13,7 +14,19 @@ class PendingLintReconcilerTest {
     private val repository = mock(SnippetRepository::class.java)
     private val accessManager = mock(AccessManagerClient::class.java)
     private val producer = mock(SnippetJobProducer::class.java)
-    private val reconciler = PendingLintReconciler(repository, accessManager, producer)
+    private val watcher = mock(ParserVersionWatcher::class.java)
+    private val reconciler = PendingLintReconciler(repository, accessManager, producer, watcher)
+
+    @Test
+    fun `checks the parser version before looking for snippets to lint`() {
+        `when`(repository.findByCompliantIsNull()).thenReturn(emptyList())
+
+        reconciler.reconcile()
+
+        val order = inOrder(watcher, repository)
+        order.verify(watcher).checkForNewVersion()
+        order.verify(repository).findByCompliantIsNull()
+    }
 
     @Test
     fun `queues never linted snippets with the owner rules and survives errors`() {

@@ -43,6 +43,16 @@ class LintStatusStore(
     fun get(snippetId: String): Status? = getAll(listOf(snippetId))[snippetId]
 
     /**
+     * Borra todos los "failed": con un parser nuevo, un snippet que antes no parseaba puede parsear ahora.
+     * Los "pending" se dejan: ya hay un trabajo en curso que va a escribir el resultado.
+     */
+    fun clearFailed(): Int {
+        val failed = hash().entries(key).filterValues { it == Status.FAILED.wire }.keys
+        if (failed.isNotEmpty()) hash().delete(key, *failed.toTypedArray())
+        return failed.size
+    }
+
+    /**
      * Un solo HMGET para toda la lista de snippets del usuario. Si Redis no responde se devuelve
      * vacío: el listado sigue funcionando con el último resultado guardado en la tabla.
      */

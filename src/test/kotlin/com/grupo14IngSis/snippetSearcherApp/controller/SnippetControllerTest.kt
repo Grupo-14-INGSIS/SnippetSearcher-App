@@ -20,6 +20,7 @@ import com.grupo14IngSis.snippetSearcherApp.repository.SnippetRepository
 import com.grupo14IngSis.snippetSearcherApp.repository.TestRepository
 import com.grupo14IngSis.snippetSearcherApp.repository.UserDataRepository
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
@@ -929,19 +930,91 @@ class SnippetControllerTest {
     }
 
     @Test
-    fun `updateSnippetMetadata returns 200`() {
+    fun `editing only the name and description saves them without re-linting`() {
+        val snippet = Snippet("snippet1", "testSnippet", "printscript", "snippet1", version = "1.1", compliant = true)
         `when`(accessManagerClient.getPermission(userId, "snippet1"))
             .thenReturn(GetPermissionResponse("snippet1", userId, "owner"))
-        `when`(snippetRepository.findById("snippet1"))
-            .thenReturn(Optional.of(Snippet("snippet1", "testSnippet", "kotlin", "snippet1")))
+        `when`(snippetRepository.findById("snippet1")).thenReturn(Optional.of(snippet))
 
         mockMvc
             .perform(
                 patch("/api/v1/snippets/snippet1")
                     .with(jwt().jwt { it.subject(userId) })
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"description":"new desc","version":"1.2"}"""),
+                    .content("""{"name":" renamed ","description":"new desc"}"""),
             ).andExpect(status().isOk)
+
+        org.junit.jupiter.api.Assertions
+            .assertEquals("renamed", snippet.name)
+        org.junit.jupiter.api.Assertions
+            .assertEquals("new desc", snippet.description)
+        org.junit.jupiter.api.Assertions
+            .assertEquals(true, snippet.compliant)
+        verify(snippetRepository).save(snippet)
+        verifyNoInteractions(jobProducer, runnerClient)
+    }
+
+    @Test
+    fun `changing the version invalidates the last lint and queues a new one`() {
+        val snippet = Snippet("snippet1", "testSnippet", "printscript", "snippet1", version = "1.1", compliant = true)
+        `when`(accessManagerClient.getPermission(userId, "snippet1"))
+            .thenReturn(GetPermissionResponse("snippet1", userId, "owner"))
+        `when`(snippetRepository.findById("snippet1")).thenReturn(Optional.of(snippet))
+
+        mockMvc
+            .perform(
+                patch("/api/v1/snippets/snippet1")
+                    .with(jwt().jwt { it.subject(userId) })
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"language":"PrintScript","version":"1.0"}"""),
+            ).andExpect(status().isOk)
+
+        org.junit.jupiter.api.Assertions
+            .assertEquals("1.0", snippet.version)
+        org.junit.jupiter.api.Assertions
+            .assertNull(snippet.compliant)
+        verify(jobProducer).requestLint(snippet, userId)
+        verifyNoInteractions(testRepository)
+    }
+
+    @Test
+    fun `editing with a blank name, an unknown language or an unknown version is 400 and saves nothing`() {
+        `when`(accessManagerClient.getPermission(userId, "snippet1"))
+            .thenReturn(GetPermissionResponse("snippet1", userId, "owner"))
+        `when`(snippetRepository.findById("snippet1"))
+            .thenReturn(Optional.of(Snippet("snippet1", "testSnippet", "printscript", "snippet1")))
+
+        listOf("""{"name":"  "}""", """{"language":"kotlin"}""", """{"version":"1.2"}""").forEach { body ->
+            mockMvc
+                .perform(
+                    patch("/api/v1/snippets/snippet1")
+                        .with(jwt().jwt { it.subject(userId) })
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body),
+                ).andExpect(status().isBadRequest)
+        }
+
+        verify(snippetRepository, never()).save(any())
+    }
+
+    @Test
+    fun `a rejected content does not save the other edited fields`() {
+        val snippet = Snippet("snippet1", "testSnippet", "printscript", "snippet1", version = "1.1")
+        `when`(accessManagerClient.getPermission(userId, "snippet1"))
+            .thenReturn(GetPermissionResponse("snippet1", userId, "owner"))
+        `when`(snippetRepository.findById("snippet1")).thenReturn(Optional.of(snippet))
+        `when`(runnerClient.updateSnippetContent("snippet1", "println(", "1.1"))
+            .thenThrow(HttpClientErrorException.create(HttpStatus.BAD_REQUEST, "Bad Request", HttpHeaders(), ByteArray(0), null))
+
+        mockMvc
+            .perform(
+                patch("/api/v1/snippets/snippet1")
+                    .with(jwt().jwt { it.subject(userId) })
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"name":"renamed","content":"println("}"""),
+            ).andExpect(status().isBadRequest)
+
+        verify(snippetRepository, never()).save(any())
     }
 
     @Test
@@ -1006,6 +1079,34 @@ class SnippetControllerTest {
                     .content()
                     .string("ANALYSIS RESULTS: 1 issue(s) found"),
             )
+    }
+
+    @Test
+    fun `format preview by a shared user formats the editor content with the OWNER rules and saves nothing`() {
+        // El botón Format de la UI: el formatter real de PrintScript, sin guardar ni pedir otro linteo
+        val snippet = Snippet("snippet1", "testSnippet", "printscript", "snippet1", version = "1.1")
+        `when`(accessManagerClient.getPermission(userId, "snippet1"))
+            .thenReturn(GetPermissionResponse("snippet1", userId, "shared"))
+        `when`(accessManagerClient.getPermissionsForSnippet("snippet1"))
+            .thenReturn(GetPermissionsForSnippetResponse("snippet1", "theOwner", listOf(userId)))
+        `when`(snippetRepository.findById("snippet1")).thenReturn(Optional.of(snippet))
+        `when`(runnerClient.callTask("snippet1", "format", "theOwner", "printscript", "1.1", "let a:number=1;"))
+            .thenReturn("let a : number = 1;")
+
+        mockMvc
+            .perform(
+                post("/api/v1/snippets/snippet1/tasks/format")
+                    .with(jwt().jwt { it.subject(userId) })
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"content":"let a:number=1;"}"""),
+            ).andExpect(status().isOk)
+            .andExpect(
+                org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                    .content()
+                    .string("let a : number = 1;"),
+            )
+
+        verifyNoInteractions(jobProducer)
     }
 
     @Test
