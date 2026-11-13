@@ -253,37 +253,6 @@ class SnippetControllerTest {
     }
 
     @Test
-    fun `requestLint queues a lint job with the owner rules`() {
-        val snippet = Snippet("snippet1", "testSnippet", "printscript", "snippet1")
-        `when`(accessManagerClient.getPermission(userId, "snippet1"))
-            .thenReturn(GetPermissionResponse("snippet1", userId, "shared"))
-        `when`(snippetRepository.findById("snippet1")).thenReturn(Optional.of(snippet))
-        `when`(accessManagerClient.getPermissionsForSnippet("snippet1"))
-            .thenReturn(GetPermissionsForSnippetResponse("snippet1", "ownerId", listOf(userId)))
-
-        mockMvc
-            .perform(
-                post("/api/v1/snippets/snippet1/lint-jobs")
-                    .with(jwt().jwt { it.subject(userId) }),
-            ).andExpect(status().isAccepted)
-
-        verify(jobProducer).requestLint(snippet, "ownerId")
-    }
-
-    @Test
-    fun `requestLint returns 403 without permission`() {
-        `when`(accessManagerClient.getPermission(userId, "snippet1")).thenReturn(null)
-
-        mockMvc
-            .perform(
-                post("/api/v1/snippets/snippet1/lint-jobs")
-                    .with(jwt().jwt { it.subject(userId) }),
-            ).andExpect(status().isForbidden)
-
-        verifyNoInteractions(jobProducer)
-    }
-
-    @Test
     fun `getAllSnippets combines the stored result with the job status`() {
         `when`(accessManagerClient.getPermissionsForUser(userId))
             .thenReturn(GetPermissionsForUserResponse(userId, listOf("ok", "bad", "running", "broken", "new"), emptyList()))
@@ -384,8 +353,8 @@ class SnippetControllerTest {
     }
 
     @Test
-    fun `createSnippet with content asks the Runner to store it as the token user`() {
-        `when`(runnerClient.createSnippet("snippet1", userId, "s1", "printscript", "println(1);", "1.1", ""))
+    fun `createSnippet with content stores it in the Runner and then App registers it as the token user`() {
+        `when`(runnerClient.createSnippet("snippet1", "s1", "printscript", "println(1);", "1.1"))
             .thenReturn(
                 org.springframework.http.ResponseEntity
                     .status(HttpStatus.CREATED)
@@ -397,16 +366,63 @@ class SnippetControllerTest {
                 put("/api/v1/snippets/snippet1")
                     .with(jwt().jwt { it.subject(userId) })
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"name":"s1","language":"printscript","content":"println(1);"}"""),
+                    .content("""{"userId":"someoneElse","name":"s1","language":"printscript","content":"println(1);"}"""),
             ).andExpect(status().isCreated)
             .andExpect(jsonPath("$.id").value("snippet1"))
 
-        verifyNoInteractions(snippetRepository)
+        val registered = Snippet("snippet1", "s1", "printscript", "snippet1", description = "", version = "1.1")
+        verify(snippetRepository).save(registered)
+        verify(accessManagerClient).postPermission(userId, "snippet1", "owner")
+        verify(jobProducer).requestLint(registered, userId)
+        verify(runnerClient, never()).deleteSnippet("snippet1")
+    }
+
+    @Test
+    fun `createSnippet deletes the stored code when App cannot register the snippet`() {
+        `when`(runnerClient.createSnippet("snippet1", "s1", "printscript", "println(1);", "1.1"))
+            .thenReturn(
+                org.springframework.http.ResponseEntity
+                    .status(HttpStatus.CREATED)
+                    .body(mapOf("id" to "snippet1")),
+            )
+        `when`(snippetRepository.existsById("snippet1")).thenReturn(true)
+
+        mockMvc
+            .perform(
+                put("/api/v1/snippets/snippet1")
+                    .with(jwt().jwt { it.subject(userId) })
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"name":"s1","language":"printscript","content":"println(1);"}"""),
+            ).andExpect(status().isConflict)
+
+        verify(runnerClient).deleteSnippet("snippet1")
+    }
+
+    @Test
+    fun `createSnippet undoes everything when AccessManager fails after saving the metadata`() {
+        `when`(runnerClient.createSnippet("snippet1", "s1", "printscript", "println(1);", "1.1"))
+            .thenReturn(
+                org.springframework.http.ResponseEntity
+                    .status(HttpStatus.CREATED)
+                    .body(mapOf("id" to "snippet1")),
+            )
+        `when`(accessManagerClient.postPermission(userId, "snippet1", "owner")).thenThrow(RuntimeException("timeout"))
+
+        mockMvc
+            .perform(
+                put("/api/v1/snippets/snippet1")
+                    .with(jwt().jwt { it.subject(userId) })
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"name":"s1","language":"printscript","content":"println(1);"}"""),
+            ).andExpect(status().isBadGateway)
+
+        verify(snippetRepository).deleteById("snippet1")
+        verify(runnerClient).deleteSnippet("snippet1")
     }
 
     @Test
     fun `createSnippet forwards a 400 from the Runner when the code does not parse`() {
-        `when`(runnerClient.createSnippet("snippet1", userId, "s1", "printscript", "println(", "1.1", ""))
+        `when`(runnerClient.createSnippet("snippet1", "s1", "printscript", "println(", "1.1"))
             .thenThrow(
                 HttpClientErrorException.create(
                     HttpStatus.BAD_REQUEST,
@@ -432,18 +448,16 @@ class SnippetControllerTest {
     }
 
     @Test
-    fun `updating the content goes through the Runner with the user token`() {
+    fun `updating the content stores it in the Runner, then App queues the lint and runs the tests`() {
+        val snippet = Snippet("snippet1", "testSnippet", "printscript", "snippet1", version = "1.1", compliant = true)
         `when`(accessManagerClient.getPermission(userId, "snippet1"))
             .thenReturn(GetPermissionResponse("snippet1", userId, "owner"))
-        `when`(snippetRepository.findById("snippet1"))
-            .thenReturn(Optional.of(Snippet("snippet1", "testSnippet", "printscript", "snippet1", version = "1.1")))
-        `when`(runnerClient.updateSnippetContent("snippet1", "println(2);", "1.1", "token-value"))
-            .thenReturn("Snippet updated successfully.")
+        `when`(snippetRepository.findById("snippet1")).thenReturn(Optional.of(snippet))
 
         mockMvc
             .perform(
                 patch("/api/v1/snippets/snippet1")
-                    .with(jwt().jwt { it.subject(userId).tokenValue("token-value") })
+                    .with(jwt().jwt { it.subject(userId) })
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"content":"println(2);"}"""),
             ).andExpect(status().isOk)
@@ -451,6 +465,62 @@ class SnippetControllerTest {
                 org.springframework.test.web.servlet.result.MockMvcResultMatchers
                     .content()
                     .string("Snippet updated successfully."),
+            )
+
+        verify(runnerClient).updateSnippetContent("snippet1", "println(2);", "1.1")
+        // El código cambió: el resultado anterior ya no vale y se pide un linteo nuevo con las reglas del dueño
+        org.junit.jupiter.api.Assertions
+            .assertNull(snippet.compliant)
+        verify(jobProducer).requestLint(snippet, userId)
+    }
+
+    @Test
+    fun `updating the content reports the tests that fail without undoing the update`() {
+        val snippet = Snippet("snippet1", "testSnippet", "printscript", "snippet1", version = "1.1")
+        val test = DomainTest("t1", "snippet1", listOf("Lari"), listOf("Hola Lari"), "1.1", mapOf("ENV" to "x"))
+        `when`(accessManagerClient.getPermission(userId, "snippet1"))
+            .thenReturn(GetPermissionResponse("snippet1", userId, "owner"))
+        `when`(snippetRepository.findById("snippet1")).thenReturn(Optional.of(snippet))
+        `when`(testRepository.findBySnippetId("snippet1")).thenReturn(listOf(test))
+        `when`(runnerClient.runTest("snippet1", userId, "1.1", mapOf("ENV" to "x"), listOf("Lari"), listOf("Hola Lari")))
+            .thenReturn(RunTestResponse(listOf("Chau Lari"), TestResult.FAILED, "expected [Hola Lari] but received [Chau Lari]"))
+
+        mockMvc
+            .perform(
+                patch("/api/v1/snippets/snippet1")
+                    .with(jwt().jwt { it.subject(userId) })
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"content":"println(2);"}"""),
+            ).andExpect(status().isOk)
+            .andExpect(
+                org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                    .content()
+                    .string(
+                        "Snippet updated successfully with the following test results:\n\n" +
+                            "- expected [Hola Lari] but received [Chau Lari]",
+                    ),
+            )
+    }
+
+    @Test
+    fun `updating the content still succeeds when the tests cannot run`() {
+        `when`(accessManagerClient.getPermission(userId, "snippet1"))
+            .thenReturn(GetPermissionResponse("snippet1", userId, "owner"))
+        `when`(snippetRepository.findById("snippet1"))
+            .thenReturn(Optional.of(Snippet("snippet1", "testSnippet", "printscript", "snippet1", version = "1.1")))
+        `when`(testRepository.findBySnippetId("snippet1")).thenThrow(RuntimeException("db down"))
+
+        mockMvc
+            .perform(
+                patch("/api/v1/snippets/snippet1")
+                    .with(jwt().jwt { it.subject(userId) })
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"content":"println(2);"}"""),
+            ).andExpect(status().isOk)
+            .andExpect(
+                org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                    .content()
+                    .string("Snippet updated successfully, but tests could not be run: db down"),
             )
     }
 
@@ -476,16 +546,19 @@ class SnippetControllerTest {
             .thenReturn(GetPermissionResponse("snippet1", userId, "owner"))
         `when`(snippetRepository.findById("snippet1"))
             .thenReturn(Optional.of(Snippet("snippet1", "testSnippet", "printscript", "snippet1", version = "1.1")))
-        `when`(runnerClient.updateSnippetContent("snippet1", "println(", "1.1", "token-value"))
+        `when`(runnerClient.updateSnippetContent("snippet1", "println(", "1.1"))
             .thenThrow(HttpClientErrorException.create(HttpStatus.BAD_REQUEST, "Bad Request", HttpHeaders(), ByteArray(0), null))
 
         mockMvc
             .perform(
                 patch("/api/v1/snippets/snippet1")
-                    .with(jwt().jwt { it.subject(userId).tokenValue("token-value") })
+                    .with(jwt().jwt { it.subject(userId) })
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"content":"println("}"""),
             ).andExpect(status().isBadRequest)
+
+        // Si el código no parsea no se guardó nada: no se pide linteo ni se corren tests
+        verifyNoInteractions(jobProducer, testRepository)
     }
 
     @Test

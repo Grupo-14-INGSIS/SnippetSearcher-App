@@ -10,6 +10,7 @@ import com.grupo14IngSis.snippetSearcherApp.dto.CreateTestResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.GetPermissionsForUserResponse
 import com.grupo14IngSis.snippetSearcherApp.dto.InputSendRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.RunTestResponse
+import com.grupo14IngSis.snippetSearcherApp.dto.TestResult
 import com.grupo14IngSis.snippetSearcherApp.dto.ShareSnippetRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationRequest
 import com.grupo14IngSis.snippetSearcherApp.dto.SnippetCreationResponse
@@ -199,8 +200,8 @@ class SnippetController(
      * PUT    /api/v1/snippets/{snippetId}
      *
      * Crea un snippet. El dueño es siempre el usuario del token (el `userId` del body se ignora).
-     * Con `content`, App le pide al Runner que valide el código y lo guarde; el Runner después lo
-     * registra por la ruta interna (`/internal/snippets/{id}`). Sin `content`, se registra directo.
+     * Con `content`, App orquesta: primero el Runner valida el código y lo guarda, y después App lo
+     * registra. El Runner nunca llama a App. Sin `content`, se registra directo.
      *
      * Request: `{ name, language, content?, description?, version? }`
      * Response: el snippet creado (con contenido) o `{ success, message }` (sin contenido)
@@ -213,29 +214,50 @@ class SnippetController(
         @RequestBody request: SnippetCreationRequest,
     ): ResponseEntity<Any> {
         val ownerId = (authentication.principal as Jwt).subject
-        if (request.content.isNullOrBlank()) {
+        val content = request.content
+        if (content.isNullOrBlank()) {
             val result = registerSnippet(snippetId, ownerId, request)
             return ResponseEntity.status(result.statusCode).body(result.body)
         }
-        return try {
-            runnerClient.createSnippet(
-                snippetId,
-                ownerId,
-                request.name,
-                request.language,
-                request.content,
-                request.version ?: "1.1",
-                request.description ?: "",
-            )
-        } catch (e: HttpClientErrorException) {
-            // 400 del Runner: el código no parsea. Se reenvía el detalle (regla, línea, columna).
-            ResponseEntity.status(e.statusCode).body(e.responseBodyAsString)
+        val stored =
+            try {
+                runnerClient.createSnippet(snippetId, request.name, request.language, content, request.version ?: "1.1")
+            } catch (e: HttpClientErrorException) {
+                // 400 del Runner: el código no parsea. Se reenvía el detalle (regla, línea, columna).
+                return ResponseEntity.status(e.statusCode).body(e.responseBodyAsString)
+            }
+        val registered = registerStoredSnippet(snippetId, ownerId, request)
+        return if (registered.statusCode.is2xxSuccessful) stored else ResponseEntity.status(registered.statusCode).body(registered.body)
+    }
+
+    /**
+     * Registra un snippet cuyo código el Runner ya guardó. Si el registro falla, borra ese código: si no,
+     * quedaría en el bucket sin metadatos ni dueño, y ningún usuario lo vería.
+     */
+    private fun registerStoredSnippet(
+        snippetId: String,
+        ownerId: String,
+        request: SnippetCreationRequest,
+    ): ResponseEntity<SnippetCreationResponse> {
+        val registered =
+            try {
+                registerSnippet(snippetId, ownerId, request)
+            } catch (e: Exception) {
+                // Por ejemplo, AccessManager no respondió después de guardar los metadatos
+                logger.warn("Could not register snippet $snippetId: ${e.message}")
+                runCatching { snippetRepository.deleteById(snippetId) }
+                ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(SnippetCreationResponse(false, "Could not register snippet"))
+            }
+        if (!registered.statusCode.is2xxSuccessful) {
+            runCatching { runnerClient.deleteSnippet(snippetId) }
+                .onFailure { logger.warn("Could not delete stored content of unregistered snippet $snippetId: ${it.message}") }
         }
+        return registered
     }
 
     /**
      * Registra el snippet en la base de App, le da permiso de dueño a [ownerId] y encola su primer
-     * linteo. Lo usan el alta desde la UI y la ruta interna que llama el Runner.
+     * linteo.
      */
     fun registerSnippet(
         snippetId: String,
@@ -842,30 +864,6 @@ class SnippetController(
         return ResponseEntity.accepted().build()
     }
 
-    /**
-     * POST /api/v1/snippets/{snippetId}/lint-jobs
-     *
-     * Crea un trabajo de linteo asíncrono (por eso 202 y un sustantivo, no el verbo "lint"). Lo llama
-     * el Runner después de guardar contenido nuevo (reenviando el JWT del usuario); el resultado llega
-     * por el stream de resultados.
-     */
-    @PostMapping("/snippets/{snippetId}/lint-jobs")
-    @PreAuthorize("isAuthenticated()")
-    fun requestLint(
-        authentication: Authentication,
-        @PathVariable snippetId: String,
-    ): ResponseEntity<Any> {
-        val jwt = authentication.principal as Jwt
-        if (getAuthorization(jwt.subject, snippetId) < sharedPermission) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        }
-        val snippet = snippetRepository.findById(snippetId).orElse(null) ?: return ResponseEntity.notFound().build()
-        // Siempre con las reglas del dueño, aunque edite alguien con quien se compartió
-        val ownerId = accessManagerClient.getPermissionsForSnippet(snippetId)?.ownerId ?: jwt.subject
-        jobProducer.requestLint(snippet, ownerId)
-        return ResponseEntity.accepted().build()
-    }
-
     private fun requestLintQuietly(
         snippet: Snippet,
         ownerId: String,
@@ -902,15 +900,40 @@ class SnippetController(
         body["version"]?.let { snippet.version = it }
         snippetRepository.save(snippet)
         val content = body["content"] ?: return ResponseEntity.ok().build()
-        // Contenido nuevo: el Runner lo valida, lo guarda, pide el linteo y corre los tests. Se le pasa el
-        // token del usuario porque el Runner, a su vez, llama a App en su nombre.
-        return try {
-            val message = runnerClient.updateSnippetContent(snippetId, content, snippet.version, jwt.tokenValue)
-            logger.info("snippet content updated snippetId=$snippetId by=$userId")
-            ResponseEntity.ok().body(message)
+        // Contenido nuevo. App orquesta: el Runner solo valida y guarda; App encola el linteo y corre los tests.
+        try {
+            runnerClient.updateSnippetContent(snippetId, content, snippet.version)
         } catch (e: HttpClientErrorException) {
-            ResponseEntity.status(e.statusCode).body(e.responseBodyAsString)
+            return ResponseEntity.status(e.statusCode).body(e.responseBodyAsString)
         }
+        logger.info("snippet content updated snippetId=$snippetId by=$userId")
+        // El resultado de linteo anterior ya no vale: queda "pending" y, si encolar falla, lo retoma el reconciliador
+        snippet.compliant = null
+        snippetRepository.save(snippet)
+        // Siempre con las reglas del dueño (hoy solo el dueño puede editar, pero no depende de eso)
+        requestLintQuietly(snippet, accessManagerClient.getPermissionsForSnippet(snippetId)?.ownerId ?: userId)
+        return ResponseEntity.ok().body(runTestsAfterUpdate(snippetId, userId))
+    }
+
+    /**
+     * Testing automático (US #16): corre los tests del snippet contra el código recién guardado. El resultado
+     * no cambia el guardado: solo se informa. La UI muestra el aviso amarillo si el texto dice "test results".
+     */
+    private fun runTestsAfterUpdate(
+        snippetId: String,
+        userId: String,
+    ): String {
+        val failures =
+            try {
+                testRepository.findBySnippetId(snippetId).mapNotNull { test ->
+                    val result = runnerClient.runTest(snippetId, userId, test.version, test.environment, test.input, test.output)
+                    result.message.takeIf { result.result != TestResult.SUCCESS }
+                }
+            } catch (e: Exception) {
+                return "Snippet updated successfully, but tests could not be run: ${e.message}"
+            }
+        if (failures.isEmpty()) return "Snippet updated successfully."
+        return "Snippet updated successfully with the following test results:\n" + failures.joinToString("") { "\n- $it" }
     }
 
     /**
