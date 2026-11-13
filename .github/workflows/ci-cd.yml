@@ -106,14 +106,14 @@ jobs:
       - name: build-and-push
         id: build
         if: github.event_name == 'push'
-        uses: Grupo-14-INGSIS/workflows/build-push@v1
+        uses: Grupo-14-INGSIS/ImageBuildAndDeploy/cd-docker@v1
         with:
           image: ghcr.io/grupo-14-ingsis/snippetsearcher-app
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update infra
         if: github.event_name == 'push'
-        uses: Grupo-14-INGSIS/workflows/update-infra@v1
+        uses: Grupo-14-INGSIS/ImageBuildAndDeploy/cd-infra@v1
         with:
           image: ghcr.io/grupo-14-ingsis/snippetsearcher-app
           image_version: ${{ steps.build.outputs.image_version }}
