@@ -50,6 +50,9 @@ class SnippetJobProducer(
             logger.warn("Not formatting snippet ${snippet.snippetId}: it has no owner")
             return
         }
+        // "pending" desde ya: el formateo cambia el código y después viene el linteo. Si no, la lista seguía
+        // mostrando el resultado viejo mientras se formateaba. El resultado del formateo limpia o renueva el estado.
+        lintStatus.markPending(snippet.snippetId)
         publish(SnippetJob(JobTask.FORMAT, snippet.snippetId, ownerId, snippet.language, snippet.version))
     }
 
@@ -74,7 +77,10 @@ class SnippetJobProducer(
         } catch (e: Exception) {
             // Sin el mensaje nadie va a lintear: el estado queda "failed" para que se vea en la UI
             // (si Redis está caído esto también falla: por eso runCatching)
-            if (job.task == JobTask.LINT) runCatching { lintStatus.markFailed(job.snippetId) }
+            // Un formateo que no se encoló no cambia nada: vale el último resultado de linteo
+            runCatching {
+                if (job.task == JobTask.LINT) lintStatus.markFailed(job.snippetId) else lintStatus.clear(job.snippetId)
+            }
             throw JobPublishException("Could not publish ${job.task.wire} job for snippet ${job.snippetId}", e)
         }
     }

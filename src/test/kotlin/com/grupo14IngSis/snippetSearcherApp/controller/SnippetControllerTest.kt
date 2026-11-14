@@ -300,6 +300,21 @@ class SnippetControllerTest {
             .perform(
                 get("/api/v1/snippets/snippet1").with(jwt().jwt { it.subject(userId) }),
             ).andExpect(status().isOk)
+            // La UI lo usa para mostrar el detalle de solo lectura
+            .andExpect(jsonPath("$.permission").value("shared"))
+    }
+
+    @Test
+    fun `getSnippetData tells the owner that it is the owner`() {
+        `when`(accessManagerClient.getPermission(userId, "snippet1"))
+            .thenReturn(GetPermissionResponse("snippet1", userId, "owner"))
+        `when`(snippetRepository.findById("snippet1"))
+            .thenReturn(Optional.of(Snippet("snippet1", "testSnippet", "printscript", "snippet1")))
+
+        mockMvc
+            .perform(get("/api/v1/snippets/snippet1").with(jwt().jwt { it.subject(userId) }))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.permission").value("owner"))
     }
 
     @Test

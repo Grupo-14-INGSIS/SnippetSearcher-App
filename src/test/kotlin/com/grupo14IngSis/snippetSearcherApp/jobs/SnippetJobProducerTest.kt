@@ -71,12 +71,23 @@ class SnippetJobProducerTest {
     }
 
     @Test
-    fun `requestFormat publishes a format job without touching the lint status`() {
+    fun `requestFormat marks the snippet pending and publishes a format job`() {
+        // Así la lista muestra Pending mientras se formatea, y no el resultado viejo
         producer.requestFormat(snippet, "owner")
 
         val (record, _) = captureRecord()
         assertEquals("format", record.value["task"])
-        verify(lintStatus, never()).markPending("s1")
+        verify(lintStatus).markPending("s1")
+    }
+
+    @Test
+    fun `a format that cannot be queued clears the pending status instead of failing the lint`() {
+        `when`(streamOps.add(anyRecord(), any(XAddOptions::class.java))).thenThrow(RuntimeException("redis down"))
+
+        assertThrows<JobPublishException> { producer.requestFormat(snippet, "owner") }
+
+        verify(lintStatus).clear("s1")
+        verify(lintStatus, never()).markFailed("s1")
     }
 
     @Test

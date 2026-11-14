@@ -174,7 +174,8 @@ class SnippetController(
         @PathVariable snippetId: String,
     ): ResponseEntity<SnippetData> {
         val jwt = authentication.principal as Jwt
-        if (getAuthorization(jwt.subject, snippetId) < sharedPermission) {
+        val permission = getAuthorization(jwt.subject, snippetId)
+        if (permission < sharedPermission) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         val snippetOptional = snippetRepository.findById(snippetId)
@@ -194,6 +195,7 @@ class SnippetController(
                 description = snippet.description,
                 version = snippet.version,
                 content = content,
+                permission = if (permission == ownerPermission) "owner" else "shared",
             )
         return ResponseEntity.ok().body(response)
     }
