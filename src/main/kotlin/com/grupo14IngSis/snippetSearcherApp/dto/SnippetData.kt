@@ -9,4 +9,6 @@ data class SnippetData(
     val description: String? = null,
     val version: String? = null,
     val content: String? = null,
+    // "owner" o "shared": la UI deja editar solo al dueño
+    val permission: String? = null,
 )

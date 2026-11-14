@@ -58,10 +58,15 @@ class SnippetJobResultConsumer(
             JobTask.FORMAT -> {
                 snippet.formatterApplied = result.outcome == JobOutcome.FORMATTED
                 snippetRepository.save(snippet)
-                if (result.outcome == JobOutcome.FORMATTED) {
-                    val ownerId = accessManagerClient.getPermissionsForSnippet(snippet.snippetId)?.ownerId
-                    if (ownerId != null) jobProducer.requestLint(snippet, ownerId)
-                }
+                val ownerId =
+                    if (result.outcome == JobOutcome.FORMATTED) {
+                        accessManagerClient.getPermissionsForSnippet(snippet.snippetId)?.ownerId
+                    } else {
+                        null
+                    }
+                // Formateado: el linteo renueva el "pending" y lo limpia al terminar. Si el formateo falló, el
+                // código no cambió y vale el último resultado: se limpia el "pending" que puso requestFormat.
+                if (ownerId != null) jobProducer.requestLint(snippet, ownerId) else lintStatus.clear(snippet.snippetId)
             }
         }
     }

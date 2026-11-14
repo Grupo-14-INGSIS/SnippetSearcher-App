@@ -81,6 +81,8 @@ class SnippetJobResultConsumerTest {
 
         assertFalse(snippet.formatterApplied)
         verifyNoInteractions(producer)
+        // El código no cambió: vale el último resultado, sin quedar en "pending"
+        verify(lintStatus).clear("s1")
     }
 
     @Test
