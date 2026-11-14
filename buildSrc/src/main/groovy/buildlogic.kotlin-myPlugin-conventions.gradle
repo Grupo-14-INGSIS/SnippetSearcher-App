@@ -24,6 +24,10 @@ project.afterEvaluate {
     }
 }
 
+kotlin {
+    jvmToolchain(21)
+}
+
 detekt {
     toolVersion = "1.23.8"
     if (file("${rootDir}/config/detekt/detekt.yml").exists()) {
@@ -36,8 +40,50 @@ ktlint {
     version = "1.4.0"
 }
 
+// Igual que en PrintScript-Tools: tests con JUnit 5, reporte de cobertura al terminar y mínimo del 80 %.
+// `check` (y por lo tanto `build`) incluye ktlintCheck, detekt, test y la verificación de cobertura.
 tasks.named("test") {
+    useJUnitPlatform()
+    finalizedBy "jacocoTestReport"
     if (rootProject.tasks.findByName("installGitHook") != null) {
         dependsOn(rootProject.tasks.named("installGitHook"))
+    }
+}
+
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport
+    violationRules {
+        rule {
+            limit { minimum = 0.8 }
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn jacocoTestCoverageVerification
+}
+
+// Cada servicio puede excluir paquetes de la cobertura (DTOs, configuración de Spring, la clase main)
+// definiendo en su build.gradle:  ext.jacocoExclusions = ['**/dto/**', ...]
+project.afterEvaluate {
+    def exclusions = project.findProperty("jacocoExclusions") ?: []
+    if (!exclusions.isEmpty()) {
+        [jacocoTestReport, jacocoTestCoverageVerification].each { task ->
+            task.classDirectories.setFrom(files(task.classDirectories.files.collect {
+                fileTree(dir: it, exclude: exclusions)
+            }))
+        }
     }
 }
