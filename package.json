@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "newrelic": "^13.6.4",
-    "uuid": "^13.0.0"
-  }
-}
