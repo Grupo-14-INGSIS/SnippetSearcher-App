@@ -10,6 +10,5 @@ import org.springframework.scheduling.annotation.EnableScheduling
 class SnippetSearcherApp
 
 fun main(args: Array<String>) {
-    
     runApplication<SnippetSearcherApp>(*args)
 }
