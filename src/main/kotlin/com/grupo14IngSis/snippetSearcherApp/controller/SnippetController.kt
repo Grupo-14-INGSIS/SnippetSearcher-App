@@ -553,7 +553,8 @@ class SnippetController(
      *       input: List<String>,
      *       expected: List<String>,
      *       version: String,
-     *       environment: Map<String, String>
+     *       environment: Map<String, String>,
+     *       name: String (opcional)
      *     }
      * Response
      *
@@ -582,6 +583,7 @@ class SnippetController(
                 testData.expected,
                 testData.version,
                 testData.environment,
+                testData.name?.trim()?.takeIf { it.isNotEmpty() },
             )
         testRepository.save(test)
         return ResponseEntity.ok(CreateTestResponse(testId))

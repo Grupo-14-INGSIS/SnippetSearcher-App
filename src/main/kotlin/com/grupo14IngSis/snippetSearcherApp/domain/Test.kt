@@ -34,4 +34,7 @@ data class Test(
     @MapKeyColumn(name = "env_name")
     @Column(name = "env_value", columnDefinition = "text")
     val environment: Map<String, String> = emptyMap(),
+    // Nombre del test. Nullable: los tests creados antes de esta columna quedan sin nombre
+    @Column(name = "name", columnDefinition = "text")
+    val name: String? = null,
 )

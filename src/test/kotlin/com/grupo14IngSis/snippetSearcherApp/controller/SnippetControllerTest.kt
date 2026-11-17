@@ -19,7 +19,10 @@ import com.grupo14IngSis.snippetSearcherApp.observability.BusinessEvents
 import com.grupo14IngSis.snippetSearcherApp.repository.SnippetRepository
 import com.grupo14IngSis.snippetSearcherApp.repository.TestRepository
 import com.grupo14IngSis.snippetSearcherApp.repository.UserDataRepository
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
@@ -733,6 +736,42 @@ class SnippetControllerTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"input":["1"],"expected":["2"],"version":"1.1","environment":{}}"""),
             ).andExpect(status().isOk)
+    }
+
+    @Test
+    fun `createTest saves the test name`() {
+        `when`(accessManagerClient.getPermission(userId, "snippet1"))
+            .thenReturn(GetPermissionResponse("snippet1", userId, "owner"))
+
+        mockMvc
+            .perform(
+                post("/api/v1/snippets/snippet1/tests")
+                    .with(jwt().jwt { it.subject(userId) })
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"name":"  Saluda  ","input":["1"],"expected":["2"],"version":"1.1","environment":{}}"""),
+            ).andExpect(status().isOk)
+
+        val captor = ArgumentCaptor.forClass(DomainTest::class.java)
+        verify(testRepository).save(captor.capture())
+        assertEquals("Saluda", captor.value.name)
+    }
+
+    @Test
+    fun `createTest with blank name saves it without name`() {
+        `when`(accessManagerClient.getPermission(userId, "snippet1"))
+            .thenReturn(GetPermissionResponse("snippet1", userId, "owner"))
+
+        mockMvc
+            .perform(
+                post("/api/v1/snippets/snippet1/tests")
+                    .with(jwt().jwt { it.subject(userId) })
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"name":"   ","input":["1"],"expected":["2"],"version":"1.1","environment":{}}"""),
+            ).andExpect(status().isOk)
+
+        val captor = ArgumentCaptor.forClass(DomainTest::class.java)
+        verify(testRepository).save(captor.capture())
+        assertNull(captor.value.name)
     }
 
     @Test
