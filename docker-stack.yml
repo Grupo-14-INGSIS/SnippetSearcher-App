@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  snippetsearcher-app:
+    image: ghcr.io/grupo-14-ingsis/snippetsearcher-app:${IMAGE_TAG:?falta IMAGE_TAG}
+    environment:
+      NEW_RELIC_APP_NAME: ${NEW_RELIC_APP_NAME:?falta NEW_RELIC_APP_NAME}
+      NEW_RELIC_LICENSE_KEY: ${NEW_RELIC_LICENSE_KEY}
+
+      JAVA_TOOL_OPTIONS: -Djava.net.preferIPv4Stack=true -XX:TieredStopAtLevel=1
+      DB_USER: app
+      DB_PASSWORD: app
+      DB_NAME: appdb
+      DB_HOST: appdb
+      DB_PORT: 5432
+
+      ACCESS_MANAGER_HOST: snippetsearcher-accessmanager
+      ACCESS_MANAGER_PORT: 8080
+      RUNNER_HOST: snippetsearcher-runner
+      RUNNER_PORT: 8080
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+    entrypoint:
+      - bash
+      - -c
+      - |
+        until bash -c "</dev/tcp/$$DB_HOST/$$DB_PORT" 2>/dev/null; do sleep 2; done
+        sleep 5
+        exec java -javaagent:/usr/local/newrelic/newrelic.jar -jar /app/app.jar
+
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/8080' || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 900s
+
+    networks: [default, snippetsearcher-net]
+    deploy:
+      replicas: 2
+      restart_policy: { condition: any, delay: 10s }
+      update_config: { parallelism: 1, delay: 10s, order: start-first, failure_action: rollback, monitor: 60s }
+
+
+  appdb:
+    image: postgres:16
+    environment: { POSTGRES_USER: app, POSTGRES_PASSWORD: app, POSTGRES_DB: appdb }
+    volumes:
+      - app-pgdata:/var/lib/postgresql/data
+    configs:
+      - { source: app_init_sql, target: /docker-entrypoint-initdb.d/01-init-snippet.sql }
+
+networks:
+  snippetsearcher-net: { external: true }
+
+volumes:
+  app-pgdata: { name: snippetsearcher_app-pgdata }
+
+
+configs:
+  app_init_sql: { name: app_init_v1, file: ./db/init/01-init-snippet.sql }
