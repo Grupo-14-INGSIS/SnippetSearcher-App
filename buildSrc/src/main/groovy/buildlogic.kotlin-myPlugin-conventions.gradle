@@ -45,8 +45,15 @@ ktlint {
 tasks.named("test") {
     useJUnitPlatform()
     finalizedBy "jacocoTestReport"
-    if (rootProject.tasks.findByName("installGitHook") != null) {
-        dependsOn(rootProject.tasks.named("installGitHook"))
+}
+
+// Antes de los tests se instala el pre-commit hook (.githooks/pre-commit → .git/hooks/), así al clonar
+// alcanza con correr `build` o `test`. La tarea `installGitHook` la registra el build.gradle de cada servicio,
+// que se evalúa DESPUÉS de este plugin: por eso se busca recién al terminar de configurar el proyecto.
+project.afterEvaluate {
+    def hook = rootProject.tasks.findByName("installGitHook")
+    if (hook != null) {
+        tasks.named("test") { dependsOn hook }
     }
 }
 
